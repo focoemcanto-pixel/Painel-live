@@ -6,6 +6,6 @@
     "directory": "./public"
   },
   "vars": {
-    "GS_API_BASE": "https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/execC"
+    "GS_API_BASE": "https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec"
   }
 }
