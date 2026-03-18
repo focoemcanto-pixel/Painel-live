@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Apresentação</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --card:#11161d;
+      --green:#00ff9c;
+      --green2:#00d27f;
+      --gold:#f5c542;
+      --white:#fff;
+    }
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      font-family:Inter, Arial, sans-serif;
+      background:#000;
+      color:#fff;
+      overflow:hidden;
+    }
+    #app{
+      width:100%;
+      height:100vh;
+      transition:opacity .35s ease;
+      position:relative;
+    }
+    #overlay{
+      position:fixed;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      padding:10px 20px;
+      border-radius:999px;
+      font-weight:800;
+      backdrop-filter:blur(10px);
+      z-index:20;
+    }
+    #viewers{
+      position:fixed;
+      top:20px;
+      left:20px;
+      background:rgba(0,0,0,.45);
+      padding:8px 12px;
+      border-radius:999px;
+      z-index:20;
+    }
+    #countdown{
+      position:fixed;
+      top:20px;
+      right:20px;
+      background:rgba(0,0,0,.45);
+      padding:8px 12px;
+      border-radius:999px;
+      z-index:20;
+    }
+    #buy{
+      position:fixed;
+      bottom:80px;
+      left:50%;
+      transform:translateX(-50%);
+      background:linear-gradient(135deg,var(--green),var(--green2));
+      color:#04110c;
+      padding:15px 30px;
+      border-radius:999px;
+      display:none;
+      animation:pulse 1.2s infinite;
+      font-weight:900;
+      z-index:20;
+      text-decoration:none;
+      box-shadow:0 15px 40px rgba(0,255,156,.22);
+    }
+    @keyframes pulse{
+      0%,100%{ transform:translateX(-50%) scale(1); }
+      50%{ transform:translateX(-50%) scale(1.05); }
+    }
+    .center{
+      height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:14px;
+      text-align:center;
+      padding:24px;
+    }
+    .title{
+      font-size:56px;
+      font-weight:900;
+      letter-spacing:-0.03em;
+    }
+    .sub{
+      font-size:22px;
+      opacity:.8;
+      max-width:760px;
+      line-height:1.4;
+    }
+    .bonus-list{
+      margin-top:18px;
+      display:grid;
+      gap:10px;
+      width:min(700px, 88vw);
+    }
+    .bonus-item{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      padding:16px 18px;
+      border-radius:16px;
+      font-weight:700;
+      font-size:22px;
+    }
+    .waiting{
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,.08), transparent 40%),
+        linear-gradient(160deg,#050607,#0c1117);
+    }
+    .pitch-frame{
+      width:100%;
+      height:100%;
+      border:none;
+      background:#000;
+    }
+    .pitch-fallback{
+      background:
+        radial-gradient(circle at top, rgba(0,255,156,.08), transparent 40%),
+        linear-gradient(145deg,#0b0f14,#131922);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="overlay"></div>
+  <div id="viewers"></div>
+  <div id="countdown"></div>
+  <a id="buy" target="_blank">🔥 GARANTIR VAGA</a>
+
+  <script src="/app.js"></script>
+  <script>
+    let atual = '';
+    let countdownValue = 0;
+
+    const $ = (id) => document.getElementById(id);
+
+    function fade(html){
+      $('app').style.opacity = 0;
+      setTimeout(() => {
+        $('app').innerHTML = html;
+        $('app').style.opacity = 1;
+      }, 220);
+    }
+
+    function render(c){
+      $('overlay').innerText = c.OVERLAY || '';
+      $('viewers').innerText = `${c.VIEWERS || 0} assistindo`;
+
+      const novoTempo = parseInt(c.COUNTDOWN || 0, 10);
+      if (!Number.isNaN(novoTempo)) {
+        countdownValue = novoTempo;
+      }
+
+      const cena = String(c.CENA || 'pre').toLowerCase();
+
+      if (cena !== atual) {
+        if (cena === 'pre') {
+          fade(`
+            <div class="center waiting">
+              <div class="title">Aguardando...</div>
+              <div class="sub">A transmissão vai começar em instantes. Fique por aqui.</div>
+            </div>
+          `);
+          $('buy').style.display = 'none';
+        }
+
+        if (cena === 'live') {
+          fade(`
+            <div class="center waiting">
+              <div class="title">AO VIVO</div>
+              <div class="sub">Workshop Voz no Altar</div>
+            </div>
+          `);
+          $('buy').style.display = 'none';
+        }
+
+        if (cena === 'pitch') {
+          const pdf = String(c.PDF_URL || '').trim();
+
+          if (pdf) {
+            fade(`<iframe class="pitch-frame" src="${pdf}"></iframe>`);
+          } else {
+            fade(`
+              <div class="center pitch-fallback">
+                <div class="title">INSCRIÇÕES ABERTAS</div>
+                <div class="sub">Mentoria Foco em Canto</div>
+              </div>
+            `);
+          }
+
+          const checkout = String(c.CHECKOUT || '').trim();
+          $('buy').href = checkout || '#';
+          $('buy').innerText = c.CTA_TEXT || '🔥 GARANTIR VAGA';
+          $('buy').style.display = checkout ? 'block' : 'none';
+        }
+
+        if (cena === 'bonus') {
+          fade(`
+            <div class="center pitch-fallback">
+              <div class="title" style="color:var(--gold);">BÔNUS LIBERADOS</div>
+              <div class="sub">Garanta sua entrada e aproveite a condição especial.</div>
+              <div class="bonus-list">
+                <div class="bonus-item">Acesso à Mentoria Foco em Canto</div>
+                <div class="bonus-item">Grupo exclusivo</div>
+                <div class="bonus-item">Oferta e condição especial</div>
+              </div>
+            </div>
+          `);
+
+          const checkout = String(c.CHECKOUT || '').trim();
+          $('buy').href = checkout || '#';
+          $('buy').innerText = c.CTA_TEXT || '🔥 GARANTIR VAGA';
+          $('buy').style.display = checkout ? 'block' : 'none';
+        }
+
+        atual = cena;
+      }
+    }
+
+    setInterval(() => {
+      if (countdownValue > 0) {
+        countdownValue--;
+        $('countdown').innerText =
+          Math.floor(countdownValue / 60) + ':' + String(countdownValue % 60).padStart(2, '0');
+      } else {
+        $('countdown').innerText = '';
+      }
+    }, 1000);
+
+    async function update(){
+      const res = await api.state();
+      if (res.ok) render(res.data);
+    }
+
+    setInterval(update, 2000);
+    update();
+  </script>
+</body>
+</html>

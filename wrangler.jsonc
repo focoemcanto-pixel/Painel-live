@@ -1,0 +1,11 @@
+{
+  "name": "foco-broadcast",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-03-18",
+  "assets": {
+    "directory": "./public"
+  },
+  "vars": {
+    "GS_API_BASE": "https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/execC"
+  }
+}

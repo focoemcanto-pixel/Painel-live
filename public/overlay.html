@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Overlay</title>
+  <style>
+    :root{
+      --bg: #0b0f14;
+      --green: #00ff9c;
+      --green-2: #00d27f;
+      --red: #ff3b3b;
+      --white: #ffffff;
+      --glass: rgba(8, 10, 14, 0.36);
+      --line: rgba(255,255,255,0.12);
+      --shadow: 0 10px 35px rgba(0,0,0,0.45);
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,sans-serif}
+    html,body{
+      width:100%;
+      height:100%;
+      background:transparent;
+      overflow:hidden;
+      color:var(--white);
+    }
+    #overlay-root{
+      position:relative;
+      width:100vw;
+      height:100vh;
+      pointer-events:none;
+    }
+    .top-wrap{
+      position:absolute;
+      top:18px;
+      left:18px;
+      right:18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      z-index:20;
+    }
+    .live-pack{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .live-badge{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      border-radius:999px;
+      background:rgba(255,59,59,0.18);
+      border:1px solid rgba(255,59,59,0.35);
+      backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);
+    }
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:var(--red);
+      box-shadow:0 0 0 0 rgba(255,59,59,.9);
+      animation:pulseDot 1.6s infinite;
+    }
+    .stat{
+      padding:10px 14px;
+      border-radius:999px;
+      background:var(--glass);
+      border:1px solid var(--line);
+      backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);
+    }
+    .logo-box{
+      padding:8px 10px;
+      border-radius:18px;
+      background:var(--glass);
+      border:1px solid var(--line);
+      backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);
+    }
+    .logo-box img{
+      display:block;
+      height:42px;
+      width:auto;
+      border-radius:10px;
+    }
+    .cta{
+      position:absolute;
+      left:50%;
+      bottom:92px;
+      transform:translateX(-50%) scale(.92);
+      background:linear-gradient(135deg, var(--green), var(--green-2));
+      color:#04110c;
+      font-weight:900;
+      font-size:22px;
+      padding:16px 28px;
+      border-radius:999px;
+      box-shadow:0 18px 40px rgba(0,255,156,.25);
+      opacity:0;
+      transition:.35s ease;
+      z-index:25;
+      text-align:center;
+      min-width:360px;
+      max-width:75vw;
+    }
+    .cta.show{
+      opacity:1;
+      transform:translateX(-50%) scale(1);
+      animation:ctaPulse 1.6s infinite;
+    }
+    .lower-third{
+      position:absolute;
+      left:26px;
+      bottom:26px;
+      width:min(760px, calc(100vw - 52px));
+      display:flex;
+      align-items:stretch;
+      border-radius:26px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      transform:translateY(130%);
+      opacity:0;
+      transition:.45s ease;
+      z-index:30;
+    }
+    .lower-third.show{
+      transform:translateY(0);
+      opacity:1;
+    }
+    .lower-accent{
+      width:12px;
+      background:linear-gradient(180deg, var(--green), var(--green-2));
+    }
+    .lower-content{
+      flex:1;
+      background:rgba(7, 10, 14, 0.72);
+      border:1px solid rgba(255,255,255,0.12);
+      border-left:none;
+      backdrop-filter:blur(14px);
+      padding:18px 22px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .lower-name{
+      font-size:30px;
+      font-weight:900;
+      line-height:1;
+    }
+    .lower-role{
+      font-size:16px;
+      opacity:.86;
+      font-weight:600;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+    }
+    .ticker-wrap{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      height:48px;
+      background:rgba(0,0,0,.72);
+      border-top:1px solid rgba(255,255,255,.1);
+      backdrop-filter:blur(12px);
+      overflow:hidden;
+      z-index:15;
+    }
+    .ticker-track{
+      height:100%;
+      display:flex;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .ticker-text{
+      display:inline-block;
+      padding-left:100%;
+      font-weight:800;
+      font-size:18px;
+      color:var(--white);
+      animation:tickerMove 18s linear infinite;
+    }
+    .ticker-highlight{
+      color:var(--green);
+    }
+    .flash-msg{
+      position:absolute;
+      top:22px;
+      left:50%;
+      transform:translateX(-50%) translateY(-24px);
+      padding:10px 18px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter:blur(10px);
+      box-shadow:var(--shadow);
+      font-weight:800;
+      opacity:0;
+      transition:.35s ease;
+      z-index:22;
+      max-width:70vw;
+      text-align:center;
+    }
+    .flash-msg.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+    .scene-pill{
+      position:absolute;
+      right:26px;
+      bottom:64px;
+      padding:10px 16px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter:blur(12px);
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      opacity:.85;
+      z-index:18;
+    }
+    @keyframes pulseDot{
+      0%{ box-shadow:0 0 0 0 rgba(255,59,59,.85); }
+      70%{ box-shadow:0 0 0 10px rgba(255,59,59,0); }
+      100%{ box-shadow:0 0 0 0 rgba(255,59,59,0); }
+    }
+    @keyframes tickerMove{
+      0%{ transform:translateX(0); }
+      100%{ transform:translateX(-100%); }
+    }
+    @keyframes ctaPulse{
+      0%,100%{ transform:translateX(-50%) scale(1); }
+      50%{ transform:translateX(-50%) scale(1.04); }
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay-root">
+    <div class="top-wrap">
+      <div class="live-pack">
+        <div class="live-badge">
+          <div class="dot"></div>
+          <div>AO VIVO</div>
+        </div>
+        <div class="stat" id="viewersBox">0 assistindo</div>
+        <div class="stat" id="countdownBox"></div>
+      </div>
+
+      <div class="logo-box">
+        <img id="logoImg" src="" alt="Logo">
+      </div>
+    </div>
+
+    <div class="flash-msg" id="flashMsg"></div>
+
+    <div class="cta" id="ctaBox">GARANTA SUA VAGA AGORA</div>
+
+    <div class="lower-third" id="lowerThird">
+      <div class="lower-accent"></div>
+      <div class="lower-content">
+        <div class="lower-name" id="lowerName">Marcos Silva</div>
+        <div class="lower-role" id="lowerRole">Foco em Canto</div>
+      </div>
+    </div>
+
+    <div class="scene-pill" id="scenePill">PRE</div>
+
+    <div class="ticker-wrap">
+      <div class="ticker-track">
+        <div class="ticker-text" id="tickerText">
+          <span class="ticker-highlight">•</span> BEM-VINDO À TRANSMISSÃO
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+  <script>
+    let countdownValue = 0;
+    let lastScene = '';
+
+    const $ = (id) => document.getElementById(id);
+
+    function applyConfig(cfg){
+      $('logoImg').src = cfg.LOGO || '';
+      $('viewersBox').innerText = `${cfg.VIEWERS || 0} assistindo`;
+
+      const overlayText = (cfg.OVERLAY || '').trim();
+      $('flashMsg').innerText = overlayText;
+      $('flashMsg').classList.toggle('show', !!overlayText);
+
+      $('tickerText').innerHTML =
+        `<span class="ticker-highlight">•</span> ${String(cfg.TICKER || 'BEM-VINDO À TRANSMISSÃO').toUpperCase()}`;
+
+      $('lowerName').innerText = cfg.LOWER_NAME || 'Marcos Silva';
+      $('lowerRole').innerText = cfg.LOWER_ROLE || 'Foco em Canto';
+
+      const showLower = ['live', 'pitch', 'bonus'].includes(String(cfg.CENA || '').toLowerCase());
+      $('lowerThird').classList.toggle('show', showLower);
+
+      const ctaText = (cfg.CTA_TEXT || 'GARANTA SUA VAGA AGORA').trim();
+      $('ctaBox').innerText = ctaText;
+      const showCTA = ['pitch', 'bonus'].includes(String(cfg.CENA || '').toLowerCase()) && !!ctaText;
+      $('ctaBox').classList.toggle('show', showCTA);
+
+      const scene = (cfg.CENA || 'pre').toUpperCase();
+      $('scenePill').innerText = scene;
+
+      const incoming = parseInt(cfg.COUNTDOWN || 0, 10);
+      if (!Number.isNaN(incoming) && (scene !== lastScene || countdownValue <= 0)) {
+        countdownValue = incoming;
+      }
+
+      lastScene = scene;
+    }
+
+    setInterval(() => {
+      if (countdownValue > 0) {
+        countdownValue--;
+        const m = Math.floor(countdownValue / 60);
+        const s = String(countdownValue % 60).padStart(2, '0');
+        $('countdownBox').innerText = `${m}:${s}`;
+      } else {
+        $('countdownBox').innerText = '';
+      }
+    }, 1000);
+
+    async function update(){
+      const res = await api.state();
+      if (res.ok) applyConfig(res.data);
+    }
+
+    setInterval(update, 2000);
+    update();
+  </script>
+</body>
+</html>
