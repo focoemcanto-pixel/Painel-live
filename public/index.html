@@ -262,6 +262,7 @@
 </head>
 <body>
   <div class="sidebar">
+    <div class="btn" onclick="iniciarPreview()">📺</div>
     <div class="btn" onclick="openModal('meet')">🎥</div>
     <div class="btn" onclick="openModal('overlay')">🎤</div>
     <div class="btn" onclick="openModal('countdown')">⏱️</div>
@@ -285,13 +286,17 @@
     </div>
 
     <div class="preview">
-      <div class="screen">
-        <div class="preview-box">
-          <div class="preview-empty">
-            <strong>Painel de controle</strong>
-            <span>Use os botões laterais para configurar a transmissão.</span>
-          </div>
-        </div>
+  <div class="screen">
+    <div class="preview-box">
+      
+      <video id="previewVideo" autoplay muted playsinline></video>
+
+      <div class="preview-empty" id="previewEmpty">
+        <strong>Preview do OBS</strong>
+        <span>Clique no botão 📺 para conectar a OBS Virtual Camera.</span>
+      </div>
+
+    </div>
         <div class="glow"></div>
         <div class="preview-status" id="previewSceneTag">Cena atual</div>
         <div class="preview-text" id="previewText">PRÉ</div>
@@ -378,6 +383,57 @@
 
   <script src="/app.js"></script>
   <script>
+let previewStream = null;
+
+async function iniciarPreview(){
+  try{
+    const videoEl = document.getElementById('previewVideo');
+    const emptyEl = document.getElementById('previewEmpty');
+
+    const tempStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false
+    });
+    tempStream.getTracks().forEach(t => t.stop());
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    console.log('DISPOSITIVOS:', devices);
+
+    const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+    let obsCam = videoInputs.find(d =>
+      (d.label || '').toLowerCase().includes('obs')
+    );
+
+    if (!obsCam && videoInputs.length) {
+      obsCam = videoInputs[0];
+    }
+
+    if (!obsCam) {
+      alert('Nenhuma câmera encontrada.');
+      return;
+    }
+
+    if (previewStream) {
+      previewStream.getTracks().forEach(t => t.stop());
+    }
+
+    previewStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId: obsCam.deviceId
+      },
+      audio: false
+    });
+
+    videoEl.srcObject = previewStream;
+    await videoEl.play();
+    emptyEl.style.display = 'none';
+
+  } catch(e){
+    console.error('Erro preview:', e);
+    alert('Erro ao abrir preview: ' + (e.message || e));
+  }
+}
     function closeAllModals(){
       document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
     }
