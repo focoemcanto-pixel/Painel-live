@@ -556,8 +556,7 @@
         }
       }
     }
-    <script>
-let previewStream = null;
+    let previewStream = null;
 
 async function iniciarPreview(){
   try{
@@ -608,7 +607,6 @@ async function iniciarPreview(){
     alert('Erro ao abrir preview: ' + (e.message || e));
   }
 }
-</script>
 
     setInterval(atualizarPainelStatus, 2000);
     atualizarPainelStatus();
