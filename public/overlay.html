@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Overlay</title>
   <style>
     :root{
@@ -14,7 +15,14 @@
       --line: rgba(255,255,255,0.12);
       --shadow: 0 10px 35px rgba(0,0,0,0.45);
     }
-    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter,Arial,sans-serif}
+
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+      font-family:Inter,Arial,sans-serif;
+    }
+
     html,body{
       width:100%;
       height:100%;
@@ -22,12 +30,14 @@
       overflow:hidden;
       color:var(--white);
     }
+
     #overlay-root{
       position:relative;
       width:100vw;
       height:100vh;
       pointer-events:none;
     }
+
     .top-wrap{
       position:absolute;
       top:18px;
@@ -38,12 +48,14 @@
       align-items:flex-start;
       z-index:20;
     }
+
     .live-pack{
       display:flex;
       gap:10px;
       align-items:center;
       flex-wrap:wrap;
     }
+
     .live-badge{
       display:flex;
       align-items:center;
@@ -55,6 +67,7 @@
       backdrop-filter:blur(10px);
       box-shadow:var(--shadow);
     }
+
     .dot{
       width:10px;
       height:10px;
@@ -63,6 +76,7 @@
       box-shadow:0 0 0 0 rgba(255,59,59,.9);
       animation:pulseDot 1.6s infinite;
     }
+
     .stat{
       padding:10px 14px;
       border-radius:999px;
@@ -71,6 +85,7 @@
       backdrop-filter:blur(10px);
       box-shadow:var(--shadow);
     }
+
     .logo-box{
       padding:8px 10px;
       border-radius:18px;
@@ -79,12 +94,14 @@
       backdrop-filter:blur(10px);
       box-shadow:var(--shadow);
     }
+
     .logo-box img{
       display:block;
       height:42px;
       width:auto;
       border-radius:10px;
     }
+
     .cta{
       position:absolute;
       left:50%;
@@ -104,11 +121,13 @@
       min-width:360px;
       max-width:75vw;
     }
+
     .cta.show{
       opacity:1;
       transform:translateX(-50%) scale(1);
       animation:ctaPulse 1.6s infinite;
     }
+
     .lower-third{
       position:absolute;
       left:26px;
@@ -124,14 +143,17 @@
       transition:.45s ease;
       z-index:30;
     }
+
     .lower-third.show{
       transform:translateY(0);
       opacity:1;
     }
+
     .lower-accent{
       width:12px;
       background:linear-gradient(180deg, var(--green), var(--green-2));
     }
+
     .lower-content{
       flex:1;
       background:rgba(7, 10, 14, 0.72);
@@ -143,11 +165,13 @@
       flex-direction:column;
       gap:6px;
     }
+
     .lower-name{
       font-size:30px;
       font-weight:900;
       line-height:1;
     }
+
     .lower-role{
       font-size:16px;
       opacity:.86;
@@ -155,6 +179,7 @@
       letter-spacing:.03em;
       text-transform:uppercase;
     }
+
     .ticker-wrap{
       position:absolute;
       left:0;
@@ -167,12 +192,14 @@
       overflow:hidden;
       z-index:15;
     }
+
     .ticker-track{
       height:100%;
       display:flex;
       align-items:center;
       white-space:nowrap;
     }
+
     .ticker-text{
       display:inline-block;
       padding-left:100%;
@@ -181,9 +208,11 @@
       color:var(--white);
       animation:tickerMove 18s linear infinite;
     }
+
     .ticker-highlight{
       color:var(--green);
     }
+
     .flash-msg{
       position:absolute;
       top:22px;
@@ -202,10 +231,12 @@
       max-width:70vw;
       text-align:center;
     }
+
     .flash-msg.show{
       opacity:1;
       transform:translateX(-50%) translateY(0);
     }
+
     .scene-pill{
       position:absolute;
       right:26px;
@@ -222,15 +253,18 @@
       opacity:.85;
       z-index:18;
     }
+
     @keyframes pulseDot{
       0%{ box-shadow:0 0 0 0 rgba(255,59,59,.85); }
       70%{ box-shadow:0 0 0 10px rgba(255,59,59,0); }
       100%{ box-shadow:0 0 0 0 rgba(255,59,59,0); }
     }
+
     @keyframes tickerMove{
       0%{ transform:translateX(0); }
       100%{ transform:translateX(-100%); }
     }
+
     @keyframes ctaPulse{
       0%,100%{ transform:translateX(-50%) scale(1); }
       50%{ transform:translateX(-50%) scale(1.04); }
@@ -281,60 +315,100 @@
   <script>
     let countdownValue = 0;
     let lastScene = '';
+    let updateInterval = null;
+    let countdownInterval = null;
 
     const $ = (id) => document.getElementById(id);
 
+    function formatTime(totalSeconds) {
+      const n = parseInt(totalSeconds || 0, 10);
+      if (Number.isNaN(n) || n <= 0) return '';
+      const m = Math.floor(n / 60);
+      const s = String(n % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function applyTickerText(text) {
+      const el = $('tickerText');
+      const msg = String(text || 'BEM-VINDO À TRANSMISSÃO').toUpperCase();
+      el.innerHTML = `<span class="ticker-highlight">•</span> ${msg}`;
+    }
+
     function applyConfig(cfg){
+      if (!cfg || typeof cfg !== 'object') return;
+
       $('logoImg').src = cfg.LOGO || '';
       $('viewersBox').innerText = `${cfg.VIEWERS || 0} assistindo`;
 
-      const overlayText = (cfg.OVERLAY || '').trim();
+      const overlayText = String(cfg.OVERLAY || '').trim();
       $('flashMsg').innerText = overlayText;
       $('flashMsg').classList.toggle('show', !!overlayText);
 
-      $('tickerText').innerHTML =
-        `<span class="ticker-highlight">•</span> ${String(cfg.TICKER || 'BEM-VINDO À TRANSMISSÃO').toUpperCase()}`;
+      applyTickerText(cfg.TICKER);
 
       $('lowerName').innerText = cfg.LOWER_NAME || 'Marcos Silva';
       $('lowerRole').innerText = cfg.LOWER_ROLE || 'Foco em Canto';
 
-      const showLower = ['live', 'pitch', 'bonus'].includes(String(cfg.CENA || '').toLowerCase());
+      const cenaAtual = String(cfg.CENA || 'pre').toLowerCase();
+      const showLower = ['live', 'pitch', 'bonus'].includes(cenaAtual);
       $('lowerThird').classList.toggle('show', showLower);
 
-      const ctaText = (cfg.CTA_TEXT || 'GARANTA SUA VAGA AGORA').trim();
+      const ctaText = String(cfg.CTA_TEXT || 'GARANTA SUA VAGA AGORA').trim();
       $('ctaBox').innerText = ctaText;
-      const showCTA = ['pitch', 'bonus'].includes(String(cfg.CENA || '').toLowerCase()) && !!ctaText;
+      const showCTA = ['pitch', 'bonus'].includes(cenaAtual) && !!ctaText;
       $('ctaBox').classList.toggle('show', showCTA);
 
-      const scene = (cfg.CENA || 'pre').toUpperCase();
+      const scene = cenaAtual.toUpperCase();
       $('scenePill').innerText = scene;
 
       const incoming = parseInt(cfg.COUNTDOWN || 0, 10);
-      if (!Number.isNaN(incoming) && (scene !== lastScene || countdownValue <= 0)) {
-        countdownValue = incoming;
+      if (!Number.isNaN(incoming) && (scene !== lastScene || countdownValue <= 0 || incoming > countdownValue)) {
+        countdownValue = Math.max(0, incoming);
       }
 
+      $('countdownBox').innerText = formatTime(countdownValue);
       lastScene = scene;
     }
 
-    setInterval(() => {
-      if (countdownValue > 0) {
-        countdownValue--;
-        const m = Math.floor(countdownValue / 60);
-        const s = String(countdownValue % 60).padStart(2, '0');
-        $('countdownBox').innerText = `${m}:${s}`;
-      } else {
-        $('countdownBox').innerText = '';
-      }
-    }, 1000);
+    function iniciarCountdown() {
+      if (countdownInterval) clearInterval(countdownInterval);
 
-    async function update(){
-      const res = await api.state();
-      if (res.ok) applyConfig(res.data);
+      countdownInterval = setInterval(() => {
+        if (countdownValue > 0) {
+          countdownValue--;
+          $('countdownBox').innerText = formatTime(countdownValue);
+        } else {
+          $('countdownBox').innerText = '';
+        }
+      }, 1000);
     }
 
-    setInterval(update, 2000);
-    update();
+    async function update(){
+      try {
+        if (!window.api || typeof window.api.state !== 'function') {
+          console.warn('API não disponível no overlay');
+          return;
+        }
+
+        const res = await window.api.state();
+        if (res && res.ok && res.data) {
+          applyConfig(res.data);
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar overlay:', err);
+      }
+    }
+
+    function iniciarAtualizacao() {
+      if (updateInterval) clearInterval(updateInterval);
+      updateInterval = setInterval(update, 2000);
+      update();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      iniciarCountdown();
+      iniciarAtualizacao();
+    });
   </script>
 </body>
 </html>
