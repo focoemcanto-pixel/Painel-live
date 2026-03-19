@@ -2048,26 +2048,12 @@
           };
         }
 
-        const response = await fetchComRetry(window.apiUrl + '?route=apresentacoes');
+        // Use the action POST endpoint instead of a GET route that may not
+        // exist in the GAS doGet() handler, avoiding HTML/JSON parse errors.
+        const json = await window.api.action({ action: 'listarApresentacoes' });
 
-        // Check content-type before parsing to handle HTML error pages
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          throw new Error(
-            'Backend retornou HTML em vez de JSON.\n\n' +
-            'Verifique se o Web App está publicado corretamente e se a URL está correta.\n\n' +
-            'Clique em "⚙️ API" no topo para configurar a URL da API.'
-          );
-        }
-
-        const json = await response.json();
-
-        if (!response.ok) {
-          return {
-            ok: false,
-            error: 'API_ERROR',
-            message: 'Erro ao comunicar com o backend.\n\nCódigo: ' + response.status
-          };
+        if (!json) {
+          throw new Error('Resposta vazia do backend');
         }
 
         if (json.error) {
