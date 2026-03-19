@@ -399,13 +399,20 @@
         }
 
         else if (cena === 'live') {
-          fade(`
-            <div class="center waiting">
-              <div class="title">AO VIVO</div>
-              <div class="sub">Workshop Voz no Altar</div>
-            </div>
-          `);
-          esconderBotaoCompra();
+          const temApresAtiva = String(c.APRESENTACAO_ATIVA_ID || '').trim();
+          if (temApresAtiva) {
+            // Live with active presentation — show slides, never CTA
+            renderizarSlideAtual(c, true);
+            esconderBotaoCompra();
+          } else {
+            fade(`
+              <div class="center waiting">
+                <div class="title">AO VIVO</div>
+                <div class="sub">Workshop Voz no Altar</div>
+              </div>
+            `);
+            esconderBotaoCompra();
+          }
         }
 
         else if (cena === 'pitch') {
@@ -444,6 +451,14 @@
         if (cena === 'pitch') {
           renderizarSlideAtual(c, false);
           atualizarBotaoCompra(c);
+        } else if (cena === 'live') {
+          const temApresAtiva = String(c.APRESENTACAO_ATIVA_ID || '').trim();
+          if (temApresAtiva) {
+            renderizarSlideAtual(c, false);
+            esconderBotaoCompra();
+          } else {
+            esconderBotaoCompra();
+          }
         } else if (cena === 'bonus') {
           atualizarBotaoCompra(c);
         } else {
