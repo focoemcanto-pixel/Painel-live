@@ -1,6 +1,7 @@
 export async function onRequestPost(context) {
   try {
     const body = await context.request.text();
+    console.log('ACTION RECEBIDA:', body);
 
     const apiUrl = 'https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec';
 
@@ -14,6 +15,7 @@ export async function onRequestPost(context) {
     });
 
     const text = await res.text();
+    console.log('RESPOSTA GS:', text);
 
     return new Response(text, {
       status: res.status,
