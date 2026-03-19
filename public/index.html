@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <title>Painel Broadcast • Foco em Canto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- PDF.js 4.4.168 (patched, legacy non-ESM build) -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js';
+    }
+  </script>
   <style>
     * { box-sizing: border-box; }
 
@@ -486,6 +493,239 @@
       color: #00ff88;
       text-align: center;
     }
+
+    /* ── PRESENTATIONS ──────────────────────── */
+    .apres-area {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      gap: 8px;
+    }
+
+    .apres-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 4px;
+    }
+
+    .apres-list::-webkit-scrollbar { width: 4px; }
+    .apres-list::-webkit-scrollbar-track { background: transparent; }
+    .apres-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .apres-card {
+      background: #1e1e1e;
+      border: 1px solid #2e2e2e;
+      border-radius: 8px;
+      padding: 10px;
+      transition: 0.18s;
+      flex-shrink: 0;
+    }
+
+    .apres-card.active {
+      border-color: #00ff88;
+      background: #1a3329;
+    }
+
+    .apres-card:hover {
+      border-color: rgba(0, 255, 136, 0.4);
+    }
+
+    .apres-info {
+      margin-bottom: 8px;
+    }
+
+    .apres-nome {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+
+    .apres-meta {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .apres-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .apres-actions button {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 11px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      margin-top: 0;
+      width: auto;
+      background: #00ff88;
+      color: #000;
+    }
+
+    .apres-actions button.btn-del-apres {
+      flex: 0;
+      padding: 6px 8px;
+      background: rgba(255, 68, 68, 0.15);
+      color: #ff6b6b;
+      border: 1px solid rgba(255, 68, 68, 0.25);
+    }
+
+    .slides-viewer {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      gap: 8px;
+    }
+
+    .viewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    .viewer-header button {
+      background: none;
+      border: none;
+      color: #00ff88;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 0;
+      width: auto;
+      margin-top: 0;
+    }
+
+    #slideCounter {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .slides-grid {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-right: 4px;
+    }
+
+    .slides-grid::-webkit-scrollbar { width: 4px; }
+    .slides-grid::-webkit-scrollbar-track { background: transparent; }
+    .slides-grid::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .slide-thumb {
+      position: relative;
+      aspect-ratio: 16 / 9;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid #2e2e2e;
+      transition: 0.18s;
+      flex-shrink: 0;
+      background: #111;
+    }
+
+    .slide-thumb:hover {
+      border-color: rgba(0, 255, 136, 0.5);
+    }
+
+    .slide-thumb.active {
+      border-color: #00ff88;
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.3);
+    }
+
+    .slide-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .slide-thumb-empty {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .thumb-numero {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .viewer-controls {
+      display: flex;
+      gap: 6px;
+      padding-top: 8px;
+      border-top: 1px solid #2a2a2a;
+      flex-shrink: 0;
+    }
+
+    .viewer-controls button {
+      flex: 1;
+      padding: 8px 4px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 11px;
+      transition: 0.18s;
+      margin-top: 0;
+      width: auto;
+    }
+
+    .viewer-controls button:hover:not(:disabled) {
+      background: #333;
+    }
+
+    .viewer-controls button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .viewer-controls .btn-apresentar {
+      background: #00ff88;
+      color: #000;
+      border-color: #00ff88;
+      flex: 2;
+    }
+
+    .viewer-controls .btn-apresentar:hover {
+      background: #00e07a;
+    }
+
+    .apres-empty {
+      text-align: center;
+      padding: 20px 10px;
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 12px;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -564,6 +804,7 @@
       <div class="tab active" id="tab-video" onclick="filtrarMidias('video')">🎥 Vídeos</div>
       <div class="tab" id="tab-pdf" onclick="filtrarMidias('pdf')">📄 PDFs</div>
       <div class="tab" id="tab-imagem" onclick="filtrarMidias('imagem')">🖼️ Imagens</div>
+      <div class="tab" id="tab-slides" onclick="abrirAbaPresentacoes()">📊 Slides</div>
     </div>
 
     <div class="midias-grid" id="midiasGrid">
@@ -573,7 +814,31 @@
       </div>
     </div>
 
-    <button class="btn-upload" onclick="openModal('upload')">➕ Upload de Mídia</button>
+    <button class="btn-upload" id="btnUploadMidia" onclick="openModal('upload')">➕ Upload de Mídia</button>
+
+    <!-- Presentations area (shown when Slides tab is active) -->
+    <div class="apres-area" id="apresentacoesArea">
+
+      <div class="apres-list" id="apresentacoesList">
+        <div class="apres-empty">Carregando apresentações…</div>
+      </div>
+
+      <div class="slides-viewer" id="slidesViewer">
+        <div class="viewer-header">
+          <button onclick="fecharViewer()">← Voltar</button>
+          <span id="slideCounter">Slide 1 de 1</span>
+        </div>
+        <div class="slides-grid" id="slidesGrid"></div>
+        <div class="viewer-controls">
+          <button id="btnPrev" onclick="slideAnteriorFn()" disabled>◀</button>
+          <button class="btn-apresentar" onclick="apresentarSlides()">🎬 Apresentar</button>
+          <button id="btnNext" onclick="proximoSlideFn()" disabled>▶</button>
+        </div>
+      </div>
+
+      <button class="btn-upload" onclick="openModal('uploadPDF')">➕ Upload PDF</button>
+
+    </div>
 
   </div>
 
@@ -664,6 +929,16 @@
     </div>
   </div>
 
+  <div class="modal" id="uploadPDFModal">
+    <div class="modal-content">
+      <h3>📊 Upload de Apresentação PDF</h3>
+      <input type="file" id="pdfArquivoInput" accept="application/pdf">
+      <button onclick="uploadPDF()">📤 Converter e Enviar</button>
+      <div class="upload-progress" id="pdfUploadProgress"></div>
+      <div class="sub">O PDF será convertido em slides individuais e salvo no Google Drive.</div>
+    </div>
+  </div>
+
   <!-- ── SCRIPTS ─────────────────────────────── -->
   <script src="/app.js"></script>
   <script>
@@ -671,6 +946,9 @@
     let statusInterval = null;
     let todasMidias = [];
     let filtroAtual = 'video';
+    let trocarPendente = false;
+    let apresentacaoAtual = null;
+    let slideAtualNum = 1;
 
     function byId(id) {
       return document.getElementById(id);
@@ -712,7 +990,8 @@
         ticker: 'tickerModal',
         cta: 'ctaModal',
         pdf: 'pdfModal',
-        upload: 'uploadModal'
+        upload: 'uploadModal',
+        uploadPDF: 'uploadPDFModal'
       };
       const id = mapa[tipo];
       const modal = id ? byId(id) : null;
@@ -727,6 +1006,7 @@
 
     /* ── SCENE SWITCHING ────────────────────── */
     async function trocar(c, el) {
+      trocarPendente = true;
       try {
         document.querySelectorAll('.scene').forEach((s) => s.classList.remove('active'));
         if (el) el.classList.add('active');
@@ -763,6 +1043,8 @@
       } catch (err) {
         console.error('Erro ao trocar cena:', err);
         alert('Erro ao trocar cena: ' + (err.message || err));
+      } finally {
+        trocarPendente = false;
       }
     }
 
@@ -1061,7 +1343,7 @@
         const etapa = cfg.AUTO_ETAPA || '-';
         byId('autoStatus').innerText = autoLigada ? `Automação: ${etapa}` : 'Automação: desligada';
 
-        if (cfg.CENA) {
+        if (cfg.CENA && !trocarPendente) {
           const cenaAtual = String(cfg.CENA).toUpperCase();
           byId('previewText').innerText = cenaAtual;
           byId('previewSceneTag').innerText = 'Cena: ' + cenaAtual;
@@ -1086,6 +1368,10 @@
       const tab = byId('tab-' + tipo);
       if (tab) tab.classList.add('active');
       renderizarMidias(todasMidias.filter((m) => m.tipo === tipo));
+
+      byId('midiasGrid').style.display = '';
+      byId('btnUploadMidia').style.display = '';
+      byId('apresentacoesArea').style.display = 'none';
     }
 
     async function carregarMidias() {
@@ -1264,6 +1550,290 @@
         alert('Erro: ' + (err.message || err));
       }
     }
+
+    /* ── PRESENTATIONS ───────────────────────── */
+    async function abrirAbaPresentacoes() {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
+      byId('tab-slides').classList.add('active');
+
+      byId('midiasGrid').style.display = 'none';
+      byId('btnUploadMidia').style.display = 'none';
+      byId('apresentacoesArea').style.display = 'flex';
+
+      await carregarApresentacoes();
+    }
+
+    async function carregarApresentacoes() {
+      const container = byId('apresentacoesList');
+      if (!container) return;
+
+      if (!apiDisponivel()) {
+        container.innerHTML = '<div class="apres-empty">API indisponível.</div>';
+        return;
+      }
+
+      try {
+        const res = await window.api.action({ action: 'listarApresentacoes' });
+        if (!res || !res.ok) {
+          container.innerHTML = '<div class="apres-empty">Erro ao carregar apresentações.</div>';
+          return;
+        }
+
+        const lista = res.data || [];
+
+        if (!lista.length) {
+          container.innerHTML = '<div class="apres-empty">📭 Nenhuma apresentação.<br>Faça upload de um PDF.</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        lista.forEach((apres) => {
+          const card = document.createElement('div');
+          card.className = 'apres-card' + (apres.ativa ? ' active' : '');
+          card.innerHTML = `
+            <div class="apres-info">
+              <div class="apres-nome">${escapeHtml(apres.nome)}</div>
+              <div class="apres-meta">${apres.totalSlides} slide${apres.totalSlides !== 1 ? 's' : ''}</div>
+            </div>
+            <div class="apres-actions">
+              <button onclick="visualizarApresentacao('${escapeHtml(apres.id)}')">Ver</button>
+              <button class="btn-del-apres" onclick="deletarApresentacaoFn('${escapeHtml(apres.id)}')">🗑️</button>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Erro ao carregar apresentações:', err);
+        container.innerHTML = '<div class="apres-empty">Erro ao carregar apresentações.</div>';
+      }
+    }
+
+    async function visualizarApresentacao(id) {
+      if (!apiDisponivel()) { alert('API indisponível.'); return; }
+      try {
+        const activRes = await window.api.action({ action: 'ativarApresentacao', id });
+        if (!activRes || !activRes.ok) {
+          alert((activRes && (activRes.error || activRes.message)) || 'Erro ao ativar apresentação.');
+          return;
+        }
+
+        const res = await window.api.action({ action: 'getApresentacaoAtiva' });
+        if (!res || !res.ok || !res.data) { alert('Erro ao carregar apresentação.'); return; }
+
+        apresentacaoAtual = res.data;
+        slideAtualNum = 1;
+
+        byId('apresentacoesList').style.display = 'none';
+        byId('slidesViewer').style.display = 'flex';
+
+        await renderizarSlidesThumbs();
+      } catch (err) {
+        console.error('Erro ao visualizar apresentação:', err);
+        alert('Erro: ' + (err.message || err));
+      }
+    }
+
+    async function renderizarSlidesThumbs() {
+      if (!apresentacaoAtual) return;
+
+      const grid = byId('slidesGrid');
+      if (!grid) return;
+
+      let midiasMap = {};
+      try {
+        const res = await window.api.action({ action: 'listarMidias' });
+        if (res && res.ok && res.data) {
+          res.data.forEach((m) => { midiasMap[m.id] = m.url; });
+        }
+      } catch (e) {
+        console.error('Erro ao buscar mídias:', e);
+      }
+
+      grid.innerHTML = '';
+      apresentacaoAtual.slidesIds.forEach((slideId, index) => {
+        const slideNum = index + 1;
+        const url = midiasMap[slideId] || null;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'slide-thumb' + (slideNum === slideAtualNum ? ' active' : '');
+        thumb.onclick = () => irParaSlide(slideNum);
+
+        if (url) {
+          thumb.innerHTML = `<img src="${escapeHtml(url)}" alt="Slide ${slideNum}"><div class="thumb-numero">${slideNum}</div>`;
+        } else {
+          thumb.innerHTML = `<div class="slide-thumb-empty">Slide ${slideNum}</div><div class="thumb-numero">${slideNum}</div>`;
+        }
+
+        grid.appendChild(thumb);
+      });
+
+      atualizarContadorSlides();
+    }
+
+    async function irParaSlide(numero) {
+      if (!apresentacaoAtual || !apiDisponivel()) return;
+      try {
+        const res = await window.api.action({ action: 'setSlideAtual', numero: numero });
+        if (res && res.ok) {
+          slideAtualNum = numero;
+          await renderizarSlidesThumbs();
+        } else {
+          alert((res && (res.error || res.message)) || 'Erro ao navegar slide.');
+        }
+      } catch (err) {
+        console.error('Erro ao ir para slide:', err);
+      }
+    }
+
+    async function proximoSlideFn() {
+      if (!apresentacaoAtual || slideAtualNum >= apresentacaoAtual.totalSlides) return;
+      await irParaSlide(slideAtualNum + 1);
+    }
+
+    async function slideAnteriorFn() {
+      if (!apresentacaoAtual || slideAtualNum <= 1) return;
+      await irParaSlide(slideAtualNum - 1);
+    }
+
+    function atualizarContadorSlides() {
+      const counter = byId('slideCounter');
+      if (counter && apresentacaoAtual) {
+        counter.textContent = `Slide ${slideAtualNum} de ${apresentacaoAtual.totalSlides}`;
+      }
+      const btnPrev = byId('btnPrev');
+      const btnNext = byId('btnNext');
+      if (btnPrev) btnPrev.disabled = slideAtualNum <= 1;
+      if (btnNext) btnNext.disabled = !apresentacaoAtual || slideAtualNum >= apresentacaoAtual.totalSlides;
+    }
+
+    function fecharViewer() {
+      byId('apresentacoesList').style.display = '';
+      byId('slidesViewer').style.display = 'none';
+      apresentacaoAtual = null;
+      carregarApresentacoes();
+    }
+
+    async function apresentarSlides() {
+      const mapa = { pre: 0, live: 1, pitch: 2, bonus: 3 };
+      const pitchEl = document.querySelectorAll('.scene')[mapa.pitch];
+      await trocar('pitch', pitchEl);
+    }
+
+    async function deletarApresentacaoFn(id) {
+      if (!confirm('Deletar esta apresentação e todos os slides?')) return;
+      if (!apiDisponivel()) { alert('API indisponível.'); return; }
+      try {
+        const res = await window.api.action({ action: 'deletarApresentacao', id });
+        if (res && res.ok) {
+          await carregarApresentacoes();
+        } else {
+          alert((res && (res.error || res.message)) || 'Erro ao deletar apresentação.');
+        }
+      } catch (err) {
+        console.error('Erro ao deletar apresentação:', err);
+        alert('Erro: ' + (err.message || err));
+      }
+    }
+
+    /* ── PDF UPLOAD ──────────────────────────── */
+    function showPDFProgress(msg) {
+      const el = byId('pdfUploadProgress');
+      if (el) { el.textContent = msg; el.style.display = 'block'; }
+    }
+
+    function hidePDFProgress() {
+      const el = byId('pdfUploadProgress');
+      if (el) el.style.display = 'none';
+    }
+
+    async function uploadPDF() {
+      const arquivo = byId('pdfArquivoInput')?.files[0];
+
+      if (!arquivo || arquivo.type !== 'application/pdf') {
+        alert('Selecione um arquivo PDF.');
+        return;
+      }
+
+      if (typeof pdfjsLib === 'undefined') {
+        alert('PDF.js não carregado. Verifique sua conexão e recarregue a página.');
+        return;
+      }
+
+      if (!apiDisponivel()) { alert('API indisponível.'); return; }
+
+      try {
+        showPDFProgress('Processando PDF…');
+
+        const arrayBuffer = await arquivo.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const numPages = pdf.numPages;
+
+        showPDFProgress(`Convertendo ${numPages} páginas…`);
+
+        const slidesIds = [];
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          showPDFProgress(`Processando slide ${pageNum} de ${numPages}…`);
+
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 });
+
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+          const res = await window.api.action({
+            action: 'uploadMidia',
+            nome: `${arquivo.name}_slide_${pageNum}.jpg`,
+            tipo: 'slide',
+            base64
+          });
+
+          if (res && res.ok) {
+            slidesIds.push(res.id);
+          } else {
+            throw new Error((res && res.error) || `Erro no slide ${pageNum}`);
+          }
+        }
+
+        showPDFProgress('Criando apresentação…');
+
+        const apresRes = await window.api.action({
+          action: 'criarApresentacao',
+          nome: arquivo.name,
+          totalSlides: numPages,
+          slidesIds
+        });
+
+        if (apresRes && apresRes.ok) {
+          showPDFProgress('✅ Upload concluído!');
+          setTimeout(() => {
+            hidePDFProgress();
+            byId('pdfArquivoInput').value = '';
+            closeAllModals();
+            abrirAbaPresentacoes();
+          }, 1500);
+        } else {
+          throw new Error((apresRes && apresRes.error) || 'Erro ao criar apresentação.');
+        }
+      } catch (err) {
+        console.error('Erro ao processar PDF:', err);
+        hidePDFProgress();
+        alert('Erro ao processar PDF: ' + (err.message || err));
+      }
+    }
+
+    /* ── KEYBOARD SHORTCUTS ─────────────────── */
+    document.addEventListener('keydown', (e) => {
+      if (!apresentacaoAtual) return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); proximoSlideFn(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); slideAnteriorFn(); }
+    });
 
     /* ── INIT ───────────────────────────────── */
     document.addEventListener('DOMContentLoaded', async () => {
