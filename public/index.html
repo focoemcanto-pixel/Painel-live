@@ -908,6 +908,171 @@
     .btn-config-api:hover {
       background: #444;
     }
+
+    /* ── PRESENTATION MODE ENHANCEMENTS ─────── */
+    .sv-mode-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      padding: 4px 0 6px;
+      gap: 8px;
+    }
+
+    .sv-mode-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: #00ff88;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid rgba(0, 255, 136, 0.25);
+      padding: 4px 10px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .sv-mode-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .sv-mode-btn {
+      padding: 5px 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      transition: 0.18s;
+      white-space: nowrap;
+      margin-top: 0;
+      width: auto;
+    }
+
+    .sv-mode-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .sv-mode-btn.active {
+      background: rgba(0, 255, 136, 0.15);
+      border-color: rgba(0, 255, 136, 0.4);
+      color: #00ff88;
+    }
+
+    /* Camera PIP (picture-in-picture over slides) */
+    .camera-pip {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 180px;
+      aspect-ratio: 16 / 9;
+      border: 2px solid #00ff88;
+      border-radius: 8px;
+      background: #000;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      z-index: 10;
+      overflow: hidden;
+      display: none;
+    }
+
+    .camera-pip.visible {
+      display: block;
+    }
+
+    .camera-pip:hover {
+      border-color: #00e07a;
+      transform: scale(1.05);
+    }
+
+    .camera-pip video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .pip-label {
+      position: absolute;
+      bottom: 3px;
+      left: 5px;
+      font-size: 8px;
+      color: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    /* Camera full view */
+    .sv-camera-view {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 5;
+    }
+
+    .sv-camera-view.visible {
+      display: block;
+    }
+
+    .sv-camera-view video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .sv-camera-no-stream {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 13px;
+      background: #111;
+      z-index: 6;
+    }
+
+    /* Browser / URL view */
+    .sv-browser-view {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      z-index: 5;
+    }
+
+    .sv-browser-view.visible {
+      display: block;
+    }
+
+    .sv-browser-view iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .sv-browser-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 13px;
+      background: #111;
+      z-index: 7;
+    }
   </style>
 </head>
 <body>
@@ -979,14 +1144,50 @@
 
     <!-- ── SLIDE VIEWER MAIN ─────────────────── -->
     <div class="slide-viewer-main" id="slideViewerMain">
+      <!-- Mode switcher bar -->
+      <div class="sv-mode-bar">
+        <span class="sv-mode-badge" id="svModeBadge">📊 Slides</span>
+        <div class="sv-mode-btns">
+          <button class="sv-mode-btn" id="svModeCameraBtn" onclick="mudarModoApresentacao('camera')">🎬 Câmera</button>
+          <button class="sv-mode-btn active" id="svModeSlidesBtn" onclick="mudarModoApresentacao('slides')">📊 Slides</button>
+          <button class="sv-mode-btn" id="svModeBrowserBtn" onclick="abrirModalBrowser()">🌐 Aba/URL</button>
+        </div>
+      </div>
+      <!-- Content area -->
       <div class="slide-viewer-content">
+        <!-- Slide view (default) -->
         <img id="slideMainImage" alt="Slide atual">
         <div class="slide-viewer-empty" id="slideViewerEmpty">
           <span class="sv-icon">📊</span>
           <span>Slide não disponível</span>
         </div>
+        <!-- Camera PIP overlay (shown over slides) -->
+        <div class="camera-pip" id="cameraPip" onclick="focarCamera()" title="Clique para expandir câmera">
+          <video id="pipVideo" autoplay muted playsinline></video>
+          <span class="pip-label">📷 OBS</span>
+        </div>
+        <!-- Camera full view -->
+        <div class="sv-camera-view" id="svCameraView">
+          <video id="cameraMainVideo" autoplay muted playsinline></video>
+          <div class="sv-camera-no-stream" id="svCameraNoStream">
+            <span style="font-size:36px">📷</span>
+            <span>Câmera não conectada</span>
+            <button class="slide-viewer-btn" onclick="conectarCameraPIP()" style="margin-top:8px;width:auto;padding:8px 14px;">Conectar OBS</button>
+          </div>
+        </div>
+        <!-- Browser / URL view -->
+        <div class="sv-browser-view" id="svBrowserView">
+          <iframe id="svBrowserFrame" title="Apresentação web" allowfullscreen
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"></iframe>
+          <div class="sv-browser-empty" id="svBrowserEmpty">
+            <span style="font-size:36px">🌐</span>
+            <span>Nenhuma URL carregada</span>
+            <button class="slide-viewer-btn" onclick="abrirModalBrowser()" style="margin-top:8px;width:auto;padding:8px 14px;">Inserir URL</button>
+          </div>
+        </div>
       </div>
-      <div class="slide-viewer-info">
+      <!-- Navigation bar (slides mode) -->
+      <div class="slide-viewer-info" id="svNavBar">
         <button class="slide-viewer-btn" id="svBtnPrev" onclick="slideAnteriorFn()" aria-label="Slide anterior">◀</button>
         <span id="svCounter">Slide 1 de 1</span>
         <button class="slide-viewer-btn" id="svBtnNext" onclick="proximoSlideFn()" aria-label="Próximo slide">▶</button>
@@ -1179,6 +1380,19 @@
     </div>
   </div>
 
+  <!-- ── BROWSER MODAL ───────────────────────── -->
+  <div class="modal" id="browserModal">
+    <div class="modal-content">
+      <h3>🌐 Apresentar Aba / URL</h3>
+      <input type="url" id="browserUrlInput" placeholder="https://exemplo.com">
+      <div class="modal-actions">
+        <button onclick="carregarBrowserURL()">Carregar</button>
+        <button onclick="closeAllModals()" style="background:#555;">Cancelar</button>
+      </div>
+      <div class="sub">Cole a URL da página que deseja apresentar. Será exibida no viewer principal.</div>
+    </div>
+  </div>
+
   <!-- ── SCRIPTS ─────────────────────────────── -->
   <script src="/app.js"></script>
   <script>
@@ -1191,6 +1405,8 @@
     let slideAtualNum = 1;
     let slideDataCache = new Map();
     let modoApresentacaoAtivo = false;
+    let modoApresentacaoTipo = 'slides'; // 'camera' | 'slides' | 'browser'
+    let browserUrlAtual = '';
     let pdfJsReady = false;
     let pdfJsLoading = false;
     let backendValidado = false;
@@ -2055,9 +2271,12 @@
       slideAtualNum = numero;
       atualizarContadorSlides();
       atualizarDestaqueMiniatura(numero);
-      if (modoApresentacaoAtivo) {
+      if (modoApresentacaoAtivo && modoApresentacaoTipo === 'slides') {
         updateMainSlideViewer();
       }
+
+      // Preload upcoming slides
+      preloadNextSlides(numero);
 
       // Sync with backend (fire-and-forget, no blocking)
       if (!apiDisponivel()) return;
@@ -2114,9 +2333,10 @@
     }
 
     async function apresentarSlides() {
+      // Use 'live' scene instead of 'pitch' for content presentation
       const mapa = { pre: 0, live: 1, pitch: 2, bonus: 3 };
-      const pitchEl = document.querySelectorAll('.scene')[mapa.pitch];
-      await trocar('pitch', pitchEl);
+      const liveEl = document.querySelectorAll('.scene')[mapa.live];
+      await trocar('live', liveEl);
 
       // Show slide viewer main in the center area
       const previewContainer = document.querySelector('.preview-container');
@@ -2126,13 +2346,16 @@
       if (previewInfo) previewInfo.style.display = 'none';
       if (viewer) viewer.classList.add('active');
       modoApresentacaoAtivo = true;
+      modoApresentacaoTipo = 'slides';
 
       // Ensure slide data cache is populated
       if (slideDataCache.size === 0 && apresentacaoAtual && apiDisponivel()) {
         await inicializarSlideDataCache();
       }
 
-      updateMainSlideViewer();
+      // Activate slides mode in the viewer
+      mudarModoApresentacao('slides');
+      preloadNextSlides(slideAtualNum);
     }
 
     async function inicializarSlideDataCache() {
@@ -2208,6 +2431,190 @@
       if (previewContainer) previewContainer.style.display = '';
       if (previewInfo) previewInfo.style.display = '';
       modoApresentacaoAtivo = false;
+
+      // Clean up camera PIP
+      const pipVideo = byId('pipVideo');
+      if (pipVideo) pipVideo.srcObject = null;
+      const cameraPip = byId('cameraPip');
+      if (cameraPip) cameraPip.classList.remove('visible');
+
+      // Clean up camera main view
+      const cameraMainVideo = byId('cameraMainVideo');
+      if (cameraMainVideo) cameraMainVideo.srcObject = null;
+      const cameraView = byId('svCameraView');
+      if (cameraView) cameraView.classList.remove('visible');
+
+      // Clean up browser view (hide but keep URL for potential reuse)
+      const browserView = byId('svBrowserView');
+      if (browserView) browserView.classList.remove('visible');
+
+      // Reset mode buttons to slides default
+      modoApresentacaoTipo = 'slides';
+      _updateModeBtns('slides');
+    }
+
+    /* ── PRESENTATION MODE CONTROLS ─────────── */
+
+    /** Internal helper — updates the active state of mode buttons and badge */
+    function _updateModeBtns(tipo) {
+      const labels = { camera: '🎬 Câmera', slides: '📊 Slides', browser: '🌐 Aba/URL' };
+      const ids    = { camera: 'svModeCameraBtn', slides: 'svModeSlidesBtn', browser: 'svModeBrowserBtn' };
+      Object.keys(ids).forEach((t) => {
+        const btn = byId(ids[t]);
+        if (btn) btn.classList.toggle('active', t === tipo);
+      });
+      const badge = byId('svModeBadge');
+      if (badge) badge.textContent = labels[tipo] || tipo;
+    }
+
+    /**
+     * Switch the main viewer between camera, slides and browser modes.
+     * @param {'camera'|'slides'|'browser'} tipo
+     */
+    function mudarModoApresentacao(tipo) {
+      modoApresentacaoTipo = tipo;
+      _updateModeBtns(tipo);
+
+      const slideImg    = byId('slideMainImage');
+      const slideEmpty  = byId('slideViewerEmpty');
+      const cameraView  = byId('svCameraView');
+      const browserView = byId('svBrowserView');
+      const cameraPip   = byId('cameraPip');
+      const navBar      = byId('svNavBar');
+
+      if (tipo === 'slides') {
+        // Show slide image + PIP
+        if (slideImg)   slideImg.style.display   = '';
+        if (cameraView) cameraView.classList.remove('visible');
+        if (browserView) browserView.classList.remove('visible');
+        if (navBar) navBar.style.display = '';
+        updateMainSlideViewer();
+        syncCameraPip();
+      } else if (tipo === 'camera') {
+        // Full camera view — hide slide and browser
+        if (slideImg)  slideImg.style.display  = 'none';
+        if (slideEmpty) slideEmpty.style.display = 'none';
+        if (cameraPip) cameraPip.classList.remove('visible');
+        if (browserView) browserView.classList.remove('visible');
+        if (cameraView) cameraView.classList.add('visible');
+        if (navBar) navBar.style.display = 'none';
+
+        const cameraMainVideo = byId('cameraMainVideo');
+        const noStream        = byId('svCameraNoStream');
+        if (previewStream) {
+          if (cameraMainVideo) {
+            cameraMainVideo.srcObject = previewStream;
+            cameraMainVideo.style.display = 'block';
+          }
+          if (noStream) noStream.style.display = 'none';
+        } else {
+          if (cameraMainVideo) cameraMainVideo.style.display = 'none';
+          if (noStream) noStream.style.display = '';
+        }
+      } else if (tipo === 'browser') {
+        // Browser / URL view
+        if (slideImg)  slideImg.style.display  = 'none';
+        if (slideEmpty) slideEmpty.style.display = 'none';
+        if (cameraPip) cameraPip.classList.remove('visible');
+        if (cameraView) cameraView.classList.remove('visible');
+        if (browserView) browserView.classList.add('visible');
+        if (navBar) navBar.style.display = 'none';
+
+        const frame = byId('svBrowserFrame');
+        const empty = byId('svBrowserEmpty');
+        if (browserUrlAtual && frame) {
+          frame.style.display = 'block';
+          if (empty) empty.style.display = 'none';
+        } else {
+          if (frame) frame.style.display = 'none';
+          if (empty) empty.style.display = '';
+        }
+      }
+    }
+
+    /** Sync the camera PIP with the current previewStream */
+    function syncCameraPip() {
+      const pipVideo = byId('pipVideo');
+      const cameraPip = byId('cameraPip');
+      if (!pipVideo || !cameraPip) return;
+      if (previewStream) {
+        pipVideo.srcObject = previewStream;
+        cameraPip.classList.add('visible');
+      } else {
+        cameraPip.classList.remove('visible');
+      }
+    }
+
+    /** Connect OBS camera and refresh the PIP / camera view */
+    async function conectarCameraPIP() {
+      await iniciarPreview();
+      if (previewStream) {
+        syncCameraPip();
+        if (modoApresentacaoTipo === 'camera') {
+          mudarModoApresentacao('camera');
+        }
+      }
+    }
+
+    /** Clicking the PIP switches to camera full view */
+    function focarCamera() {
+      if (!modoApresentacaoAtivo) return;
+      mudarModoApresentacao('camera');
+    }
+
+    /** Open the URL input modal */
+    function abrirModalBrowser() {
+      const modal = byId('browserModal');
+      const input = byId('browserUrlInput');
+      if (input) input.value = browserUrlAtual || '';
+      closeAllModals();
+      if (modal) modal.style.display = 'flex';
+    }
+
+    /** Load the typed URL into the browser viewer and switch to browser mode */
+    function carregarBrowserURL() {
+      const input = byId('browserUrlInput');
+      if (!input) return;
+      const url = input.value.trim();
+      if (!url) { alert('Digite uma URL válida.'); return; }
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        alert('A URL deve começar com http:// ou https://');
+        return;
+      }
+      browserUrlAtual = url;
+      const frame = byId('svBrowserFrame');
+      const empty = byId('svBrowserEmpty');
+      if (frame) {
+        frame.src = url;
+        frame.style.display = 'block';
+      }
+      if (empty) empty.style.display = 'none';
+      closeAllModals();
+      if (modoApresentacaoAtivo) {
+        mudarModoApresentacao('browser');
+      }
+    }
+
+    /**
+     * Preload the next few slide images so they appear instantly when navigated to.
+     * @param {number} currentNum  Current (1-based) slide number.
+     * @param {number} [count=2]  How many upcoming slides to preload.
+     */
+    function preloadNextSlides(currentNum, count = 2) {
+      if (!apresentacaoAtual) return;
+      for (let i = 1; i <= count; i++) {
+        const nextNum = currentNum + i;
+        if (nextNum > apresentacaoAtual.totalSlides) break;
+        const slideId = apresentacaoAtual.slidesIds[nextNum - 1];
+        if (!slideId) continue;
+        const slideData = slideDataCache.get(slideId);
+        if (!slideData) continue;
+        const candidates = getSlideImageCandidates(slideData);
+        if (candidates.length) {
+          const img = new Image();
+          img.src = candidates[0];
+        }
+      }
     }
 
     function toggleFullscreen() {
