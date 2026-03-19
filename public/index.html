@@ -658,6 +658,55 @@
       color: rgba(255, 255, 255, 0.3);
     }
 
+    .slide-thumb.error {
+      border-color: #ff4444;
+      background: #331111;
+    }
+
+    .thumb-error {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      opacity: 0.5;
+    }
+
+    .loading-state {
+      padding: 32px;
+      text-align: center;
+      color: #00ff88;
+      font-size: 14px;
+    }
+
+    .error-state {
+      padding: 32px;
+      text-align: center;
+      color: #ff4444;
+      font-size: 14px;
+    }
+
+    .error-state p {
+      margin: 8px 0;
+    }
+
+    .error-state button {
+      padding: 8px 16px;
+      background: #00ff88;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    .error-state button:hover {
+      transform: scale(1.05);
+    }
+
     .thumb-numero {
       position: absolute;
       bottom: 4px;
@@ -1720,33 +1769,75 @@
       const grid = byId('slidesGrid');
       if (!grid) return;
 
-      let midiasMap = {};
+      grid.innerHTML = '<div class="loading-state">Carregando slides…</div>';
+
       try {
+        // Busca TODAS as mídias UMA ÚNICA VEZ e cria um mapa para lookup rápido
         const res = await window.api.action({ action: 'listarMidias' });
-        if (res && res.ok && res.data) {
-          res.data.forEach((m) => { midiasMap[m.id] = m.url; });
+        if (!res || !res.ok || !res.data) {
+          throw new Error((res && (res.error || res.message)) || 'Erro ao buscar mídias');
         }
-      } catch (e) {
-        console.error('Erro ao buscar mídias:', e);
+
+        const midiasMap = new Map();
+        res.data.forEach((m) => { midiasMap.set(m.id, m.url); });
+
+        grid.innerHTML = '';
+        let slidesEncontrados = 0;
+
+        apresentacaoAtual.slidesIds.forEach((slideId, index) => {
+          const slideNum = index + 1;
+          const url = midiasMap.get(slideId) || null;
+
+          const thumb = document.createElement('div');
+          thumb.className = 'slide-thumb' + (slideNum === slideAtualNum ? ' active' : '');
+          thumb.onclick = () => irParaSlide(slideNum);
+
+          if (url) {
+            slidesEncontrados++;
+            const img = document.createElement('img');
+            img.src = escapeHtml(url);
+            img.alt = `Slide ${slideNum}`;
+            img.loading = 'lazy';
+            img.onerror = function() {
+              thumb.classList.add('error');
+              img.style.display = 'none';
+            };
+            const num = document.createElement('div');
+            num.className = 'thumb-numero';
+            num.textContent = slideNum;
+            thumb.appendChild(img);
+            thumb.appendChild(num);
+          } else {
+            thumb.classList.add('error');
+            thumb.innerHTML = `<div class="thumb-error"><div>❌</div><div class="thumb-numero">${slideNum}</div></div>`;
+            console.warn(`Slide ${slideNum} não encontrado (ID: ${slideId})`);
+          }
+
+          grid.appendChild(thumb);
+        });
+
+        if (slidesEncontrados === 0) {
+          const emptyEl = document.createElement('div');
+          emptyEl.className = 'error-state';
+          emptyEl.innerHTML = '<p>❌ Nenhum slide encontrado</p><p>Os slides podem ter sido deletados</p>';
+          grid.innerHTML = '';
+          grid.appendChild(emptyEl);
+          atualizarContadorSlides();
+          return;
+        }
+
+      } catch (err) {
+        console.error('Erro ao renderizar slides:', err);
+        const errEl = document.createElement('div');
+        errEl.className = 'error-state';
+        errEl.innerHTML = `<p>❌ Erro ao carregar slides</p><p>${escapeHtml(err.message || String(err))}</p>`;
+        const btnRetry = document.createElement('button');
+        btnRetry.textContent = '🔄 Tentar Novamente';
+        btnRetry.onclick = renderizarSlidesThumbs;
+        errEl.appendChild(btnRetry);
+        grid.innerHTML = '';
+        grid.appendChild(errEl);
       }
-
-      grid.innerHTML = '';
-      apresentacaoAtual.slidesIds.forEach((slideId, index) => {
-        const slideNum = index + 1;
-        const url = midiasMap[slideId] || null;
-
-        const thumb = document.createElement('div');
-        thumb.className = 'slide-thumb' + (slideNum === slideAtualNum ? ' active' : '');
-        thumb.onclick = () => irParaSlide(slideNum);
-
-        if (url) {
-          thumb.innerHTML = `<img src="${escapeHtml(url)}" alt="Slide ${slideNum}"><div class="thumb-numero">${slideNum}</div>`;
-        } else {
-          thumb.innerHTML = `<div class="slide-thumb-empty">Slide ${slideNum}</div><div class="thumb-numero">${slideNum}</div>`;
-        }
-
-        grid.appendChild(thumb);
-      });
 
       atualizarContadorSlides();
     }
@@ -2257,6 +2348,17 @@
         if (apresRes && apresRes.ok) {
           // Invalida cache para forçar nova validação
           backendValidado = false;
+
+          // Verifica quantos slides foram realmente salvos no backend
+          try {
+            const verificarRes = await window.api.action({ action: 'listarMidias' });
+            if (verificarRes && verificarRes.ok && verificarRes.data) {
+              const slidesSalvos = verificarRes.data.filter(m => slidesIds.includes(m.id));
+              console.log(`${slidesSalvos.length} de ${slidesIds.length} slides verificados no backend`);
+            }
+          } catch (e) {
+            console.warn('Não foi possível verificar slides no backend:', e);
+          }
 
           showPDFProgress('✅ Upload concluído!');
           setTimeout(async () => {
