@@ -928,7 +928,8 @@
       <h3>📊 Upload de Apresentação PDF</h3>
       <input type="file" id="pdfArquivoInput" accept="application/pdf">
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button onclick="testarPDFJs()" style="background:#555;flex:0 0 auto;">🔧 Testar PDF.js</button>
+        <button onclick="verificarConfiguracao()" style="background:#555;flex:0 0 auto;">🔧 Verificar Config</button>
+        <button onclick="testarPDFJs()" style="background:#666;flex:0 0 auto;">📄 Testar PDF.js</button>
         <button onclick="uploadPDF()" style="flex:1;">📤 Converter e Enviar</button>
       </div>
       <div class="upload-progress" id="pdfUploadProgress"></div>
@@ -948,6 +949,10 @@
     let slideAtualNum = 1;
     let pdfJsReady = false;
     let pdfJsLoading = false;
+    let backendValidado = false;
+    let ultimaValidacao = 0;
+    const CACHE_VALIDACAO_MS = 300000; // 5 minutos
+    const MIN_TAXA_SUCESSO = 0.5;      // 50% dos slides precisam ser processados
 
     function byId(id) {
       return document.getElementById(id);
@@ -1860,6 +1865,173 @@
       }
     }
 
+    async function validarBackendApresentacoes() {
+      const agora = Date.now();
+      if (backendValidado && (agora - ultimaValidacao) < CACHE_VALIDACAO_MS) {
+        return { ok: true };
+      }
+
+      try {
+        if (!apiDisponivel()) {
+          return {
+            ok: false,
+            error: 'API_INDISPONIVEL',
+            message: 'A API do Google Apps Script não está configurada.\n\nConfigure a URL da API nas configurações.'
+          };
+        }
+
+        const response = await fetchComRetry(window.apiUrl + '?route=apresentacoes');
+        const json = await response.json();
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            error: 'API_ERROR',
+            message: 'Erro ao comunicar com o backend.\n\nCódigo: ' + response.status
+          };
+        }
+
+        if (json.error) {
+          const errorMsg = String(json.error || json.message || '');
+
+          if (errorMsg.includes('APRESENTACOES') || errorMsg.includes('não existe')) {
+            return {
+              ok: false,
+              error: 'ABA_NAO_EXISTE',
+              message: '❌ A aba "APRESENTACOES" não existe no Google Sheets!\n\n' +
+                       '📋 Você precisa aplicar as funções do Google Apps Script:\n\n' +
+                       '1. Abra seu Google Apps Script\n' +
+                       '2. Adicione a aba APRESENTACOES no initSistema()\n' +
+                       '3. Adicione as 9 funções de apresentações\n' +
+                       '4. Adicione os cases no doPost() e doGet()\n' +
+                       '5. Salve e reimplante como Web App\n\n' +
+                       'Clique em "🔧 Verificar Config" para mais instruções.'
+            };
+          }
+
+          if (errorMsg.includes('is not defined') || errorMsg.includes('não está definid')) {
+            return {
+              ok: false,
+              error: 'FUNCAO_NAO_EXISTE',
+              message: '❌ Funções de apresentações não foram adicionadas!\n\n' +
+                       'Você precisa adicionar no Google Apps Script:\n\n' +
+                       '• criarApresentacao()\n' +
+                       '• listarApresentacoes()\n' +
+                       '• ativarApresentacao()\n' +
+                       '• setSlideAtual()\n' +
+                       '• E outras 5 funções\n\n' +
+                       'Reimplante o Web App após adicionar.'
+            };
+          }
+
+          return {
+            ok: false,
+            error: 'ERRO_DESCONHECIDO',
+            message: 'Erro no backend: ' + errorMsg
+          };
+        }
+
+        backendValidado = true;
+        ultimaValidacao = agora;
+        return { ok: true };
+
+      } catch (err) {
+        return {
+          ok: false,
+          error: 'NETWORK_ERROR',
+          message: '❌ Erro de rede ao validar backend.\n\n' +
+                   'Verifique:\n' +
+                   '• Sua conexão com a internet\n' +
+                   '• Se a URL da API está correta\n' +
+                   '• Se o Google Apps Script está publicado\n\n' +
+                   'Erro: ' + (err.message || err)
+        };
+      }
+    }
+
+    async function fetchComRetry(url, options = {}, maxRetries = 3) {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const response = await fetch(url, options);
+          return response;
+        } catch (err) {
+          if (i === maxRetries - 1) throw err;
+          console.warn(`Tentativa ${i + 1} falhou, tentando novamente…`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
+      }
+    }
+
+    async function verificarConfiguracao() {
+      showPDFProgress('🔍 Verificando configuração…');
+
+      const checks = { pdfJs: false, api: false, backend: false };
+
+      checks.pdfJs = await ensurePDFJsLoaded();
+      checks.api = apiDisponivel();
+
+      if (checks.api) {
+        const validacao = await validarBackendApresentacoes();
+        checks.backend = validacao.ok;
+      }
+
+      hidePDFProgress();
+
+      const status =
+        '🔍 STATUS DA CONFIGURAÇÃO:\n\n' +
+        (checks.pdfJs ? '✅' : '❌') + ' PDF.js (processamento de PDF)\n' +
+        (checks.api   ? '✅' : '❌') + ' API configurada\n' +
+        (checks.backend ? '✅' : '❌') + ' Backend com aba APRESENTACOES\n' +
+        (checks.pdfJs && checks.api && checks.backend
+          ? '\n🎉 Tudo OK! Você pode fazer upload de PDFs.'
+          : '\n⚠️ Alguns itens precisam ser corrigidos.');
+
+      alert(status);
+
+      if (!checks.backend && checks.api) {
+        const ajuda = confirm(
+          'A aba APRESENTACOES não existe ou as funções não foram adicionadas.\n\n' +
+          'Deseja ver as instruções de como adicionar?'
+        );
+        if (ajuda) {
+          mostrarInstrucoesBackend();
+        }
+      }
+    }
+
+    function mostrarInstrucoesBackend() {
+      const instrucoes =
+        '📋 INSTRUÇÕES PARA ADICIONAR SUPORTE A APRESENTAÇÕES:\n\n' +
+        '1️⃣ Abra seu Google Apps Script\n\n' +
+        '2️⃣ Atualize a função initSistema():\n' +
+        '   • Adicione a aba APRESENTACOES no array de abas\n\n' +
+        '3️⃣ Adicione 9 funções novas:\n' +
+        '   • criarApresentacao()\n' +
+        '   • listarApresentacoes()\n' +
+        '   • getApresentacaoAtiva()\n' +
+        '   • setSlideAtual()\n' +
+        '   • proximoSlide()\n' +
+        '   • slideAnterior()\n' +
+        '   • ativarApresentacao()\n' +
+        '   • desativarTodasApresentacoes()\n' +
+        '   • deletarApresentacao()\n\n' +
+        '4️⃣ Adicione 6 cases no doPost():\n' +
+        '   • criarApresentacao, ativarApresentacao, deletarApresentacao\n' +
+        '   • setSlideAtual, proximoSlide, slideAnterior\n\n' +
+        '5️⃣ Adicione 2 cases no doGet():\n' +
+        '   • apresentacoes, apresentacaoAtiva\n\n' +
+        '6️⃣ Salve e Reimplante como Web App\n\n' +
+        '7️⃣ Volte aqui e clique em "🔧 Verificar Config" novamente';
+
+      alert(instrucoes);
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(instrucoes).catch((err) => {
+          console.warn('Não foi possível copiar instruções para a área de transferência:', err);
+        });
+      }
+    }
+
     async function uploadPDF() {
       const arquivo = byId('pdfArquivoInput')?.files[0];
 
@@ -1868,10 +2040,9 @@
         return;
       }
 
-      if (!apiDisponivel()) { alert('API indisponível.'); return; }
-
       try {
-        showPDFProgress('Verificando PDF.js…');
+        // PASSO 1: Verificar PDF.js
+        showPDFProgress('🔧 Verificando PDF.js…');
 
         const isLoaded = await ensurePDFJsLoaded();
 
@@ -1889,71 +2060,150 @@
           return;
         }
 
-        showPDFProgress('Processando PDF…');
+        // PASSO 2: Validar Backend
+        showPDFProgress('🔧 Validando backend…');
+
+        const backendOk = await validarBackendApresentacoes();
+
+        if (!backendOk.ok) {
+          hidePDFProgress();
+          alert(backendOk.message);
+          return;
+        }
+
+        // PASSO 3: Ler PDF
+        showPDFProgress('📄 Lendo PDF…');
 
         const arrayBuffer = await arquivo.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const numPages = pdf.numPages;
 
-        showPDFProgress(`Convertendo ${numPages} páginas…`);
+        if (numPages === 0) {
+          hidePDFProgress();
+          alert('❌ O PDF está vazio ou corrompido.');
+          return;
+        }
 
-        const slidesIds = [];
-
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-          showPDFProgress(`Processando slide ${pageNum} de ${numPages}…`);
-
-          const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2.0 });
-
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-
-          await page.render({ canvasContext: context, viewport }).promise;
-
-          const base64 = canvas.toDataURL('image/jpeg', 0.85);
-
-          showPDFProgress(`Enviando slide ${pageNum} de ${numPages}…`);
-
-          const res = await window.api.action({
-            action: 'uploadMidia',
-            nome: `${arquivo.name}_slide_${pageNum}.jpg`,
-            tipo: 'slide',
-            base64
-          });
-
-          if (res && res.ok) {
-            slidesIds.push(res.id);
-          } else {
-            throw new Error((res && res.error) || `Erro no slide ${pageNum}`);
+        if (numPages > 100) {
+          const confirma = confirm(
+            `⚠️ Este PDF tem ${numPages} páginas.\n\n` +
+            'Isso pode levar vários minutos e consumir muito espaço no Drive.\n\n' +
+            'Deseja continuar?'
+          );
+          if (!confirma) {
+            hidePDFProgress();
+            return;
           }
         }
 
-        showPDFProgress('Criando apresentação…');
+        showPDFProgress(`📊 Convertendo ${numPages} ${numPages === 1 ? 'página' : 'páginas'}…`);
+
+        const slidesIds = [];
+        const erros = [];
+
+        // PASSO 4: Converter cada página
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          try {
+            showPDFProgress(`🖼️ Processando slide ${pageNum} de ${numPages}…`);
+
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.0 });
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+            showPDFProgress(`☁️ Enviando slide ${pageNum} de ${numPages}…`);
+
+            const res = await window.api.action({
+              action: 'uploadMidia',
+              nome: `${arquivo.name.replace(/\.pdf$/i, '')}_slide_${pageNum}.jpg`,
+              tipo: 'slide',
+              base64
+            });
+
+            if (res && res.ok && res.id) {
+              slidesIds.push(res.id);
+            } else {
+              erros.push(`Slide ${pageNum}: ${(res && res.error) || 'erro desconhecido'}`);
+            }
+          } catch (pageErr) {
+            console.error(`Erro no slide ${pageNum}:`, pageErr);
+            erros.push(`Slide ${pageNum}: ${pageErr.message}`);
+          }
+        }
+
+        // PASSO 5: Verificar se pelo menos algum slide foi processado
+        if (slidesIds.length === 0) {
+          hidePDFProgress();
+          alert('❌ Nenhum slide foi processado com sucesso.\n\nErros:\n' + erros.join('\n'));
+          return;
+        }
+
+        if (slidesIds.length < numPages * MIN_TAXA_SUCESSO) {
+          const continuar = confirm(
+            `⚠️ Apenas ${slidesIds.length} de ${numPages} slides foram processados.\n\n` +
+            'Deseja criar a apresentação mesmo assim?'
+          );
+          if (!continuar) {
+            hidePDFProgress();
+            return;
+          }
+        }
+
+        // PASSO 6: Criar apresentação
+        showPDFProgress('📊 Criando apresentação…');
 
         const apresRes = await window.api.action({
           action: 'criarApresentacao',
           nome: arquivo.name,
-          totalSlides: numPages,
+          totalSlides: slidesIds.length,
           slidesIds
         });
 
         if (apresRes && apresRes.ok) {
+          // Invalida cache para forçar nova validação
+          backendValidado = false;
+
           showPDFProgress('✅ Upload concluído!');
-          setTimeout(() => {
+          setTimeout(async () => {
             hidePDFProgress();
             byId('pdfArquivoInput').value = '';
             closeAllModals();
             abrirAbaPresentacoes();
+
+            if (erros.length > 0) {
+              alert(
+                `🎉 Apresentação criada!\n\n` +
+                `📊 ${slidesIds.length} ${slidesIds.length === 1 ? 'slide' : 'slides'} processado${slidesIds.length === 1 ? '' : 's'}\n` +
+                `\n⚠️ ${erros.length} erro(s) durante o processamento`
+              );
+            }
           }, 1500);
         } else {
-          throw new Error((apresRes && apresRes.error) || 'Erro ao criar apresentação.');
+          throw new Error((apresRes && (apresRes.error || apresRes.message)) || 'Erro ao criar apresentação.');
         }
       } catch (err) {
         console.error('Erro ao processar PDF:', err);
         hidePDFProgress();
-        alert('Erro ao processar PDF: ' + (err.message || err));
+
+        let mensagemErro = '❌ Erro ao processar PDF:\n\n';
+
+        if (err.message && err.message.includes('APRESENTACOES')) {
+          mensagemErro +=
+            '⚠️ A aba APRESENTACOES não existe no Google Sheets.\n\n' +
+            'Você precisa aplicar as funções do backend primeiro!\n\n' +
+            'Clique em "🔧 Verificar Config" para ver as instruções.';
+        } else {
+          mensagemErro += err.message || err;
+        }
+
+        alert(mensagemErro);
       }
     }
 
