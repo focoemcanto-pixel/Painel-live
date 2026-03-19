@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Apresentação</title>
   <style>
     :root{
@@ -12,8 +13,10 @@
       --gold:#f5c542;
       --white:#fff;
     }
-    *{box-sizing:border-box}
-    html,body{
+
+    * { box-sizing:border-box; }
+
+    html, body {
       margin:0;
       width:100%;
       height:100%;
@@ -22,12 +25,14 @@
       color:#fff;
       overflow:hidden;
     }
+
     #app{
       width:100%;
       height:100vh;
       transition:opacity .35s ease;
       position:relative;
     }
+
     #overlay{
       position:fixed;
       top:20px;
@@ -40,7 +45,13 @@
       font-weight:800;
       backdrop-filter:blur(10px);
       z-index:20;
+      max-width:min(92vw, 900px);
+      text-align:center;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
+
     #viewers{
       position:fixed;
       top:20px;
@@ -49,7 +60,9 @@
       padding:8px 12px;
       border-radius:999px;
       z-index:20;
+      font-weight:600;
     }
+
     #countdown{
       position:fixed;
       top:20px;
@@ -58,7 +71,11 @@
       padding:8px 12px;
       border-radius:999px;
       z-index:20;
+      font-weight:700;
+      min-width:72px;
+      text-align:center;
     }
+
     #buy{
       position:fixed;
       bottom:80px;
@@ -74,11 +91,18 @@
       z-index:20;
       text-decoration:none;
       box-shadow:0 15px 40px rgba(0,255,156,.22);
+      max-width:min(92vw, 900px);
+      text-align:center;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
+
     @keyframes pulse{
       0%,100%{ transform:translateX(-50%) scale(1); }
       50%{ transform:translateX(-50%) scale(1.05); }
     }
+
     .center{
       height:100vh;
       display:flex;
@@ -89,23 +113,27 @@
       text-align:center;
       padding:24px;
     }
+
     .title{
       font-size:56px;
       font-weight:900;
       letter-spacing:-0.03em;
     }
+
     .sub{
       font-size:22px;
       opacity:.8;
       max-width:760px;
       line-height:1.4;
     }
+
     .bonus-list{
       margin-top:18px;
       display:grid;
       gap:10px;
       width:min(700px, 88vw);
     }
+
     .bonus-item{
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.08);
@@ -114,21 +142,32 @@
       font-weight:700;
       font-size:22px;
     }
+
     .waiting{
       background:
         radial-gradient(circle at center, rgba(255,255,255,.08), transparent 40%),
         linear-gradient(160deg,#050607,#0c1117);
     }
+
     .pitch-frame{
       width:100%;
       height:100%;
       border:none;
       background:#000;
+      display:block;
     }
+
     .pitch-fallback{
       background:
         radial-gradient(circle at top, rgba(0,255,156,.08), transparent 40%),
         linear-gradient(145deg,#0b0f14,#131922);
+    }
+
+    @media (max-width: 900px){
+      .title { font-size:40px; }
+      .sub { font-size:18px; }
+      .bonus-item { font-size:18px; }
+      #buy { bottom:28px; padding:14px 22px; }
     }
   </style>
 </head>
@@ -137,31 +176,73 @@
   <div id="overlay"></div>
   <div id="viewers"></div>
   <div id="countdown"></div>
-  <a id="buy" target="_blank">🔥 GARANTIR VAGA</a>
+  <a id="buy" target="_blank" rel="noopener noreferrer">🔥 GARANTIR VAGA</a>
 
   <script src="/app.js"></script>
   <script>
     let atual = '';
     let countdownValue = 0;
+    let updateInterval = null;
+    let countdownInterval = null;
+    let renderToken = 0;
 
     const $ = (id) => document.getElementById(id);
 
     function fade(html){
-      $('app').style.opacity = 0;
+      const app = $('app');
+      const token = ++renderToken;
+
+      app.style.opacity = 0;
+
       setTimeout(() => {
-        $('app').innerHTML = html;
-        $('app').style.opacity = 1;
+        if (token !== renderToken) return;
+        app.innerHTML = html;
+        app.style.opacity = 1;
       }, 220);
     }
 
+    function formatTime(totalSeconds) {
+      const n = parseInt(totalSeconds || 0, 10);
+      if (Number.isNaN(n) || n <= 0) return '';
+      const min = Math.floor(n / 60);
+      const sec = String(n % 60).padStart(2, '0');
+      return `${min}:${sec}`;
+    }
+
+    function escapeAttr(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function atualizarBotaoCompra(c) {
+      const checkout = String(c.CHECKOUT || '').trim();
+      const ctaText = String(c.CTA_TEXT || '🔥 GARANTIR VAGA').trim();
+
+      $('buy').href = checkout || '#';
+      $('buy').innerText = ctaText;
+      $('buy').style.display = checkout ? 'block' : 'none';
+    }
+
+    function esconderBotaoCompra() {
+      $('buy').style.display = 'none';
+      $('buy').href = '#';
+    }
+
     function render(c){
+      if (!c || typeof c !== 'object') return;
+
       $('overlay').innerText = c.OVERLAY || '';
       $('viewers').innerText = `${c.VIEWERS || 0} assistindo`;
 
       const novoTempo = parseInt(c.COUNTDOWN || 0, 10);
       if (!Number.isNaN(novoTempo)) {
-        countdownValue = novoTempo;
+        countdownValue = Math.max(0, novoTempo);
       }
+
+      $('countdown').innerText = formatTime(countdownValue);
 
       const cena = String(c.CENA || 'pre').toLowerCase();
 
@@ -173,24 +254,24 @@
               <div class="sub">A transmissão vai começar em instantes. Fique por aqui.</div>
             </div>
           `);
-          $('buy').style.display = 'none';
+          esconderBotaoCompra();
         }
 
-        if (cena === 'live') {
+        else if (cena === 'live') {
           fade(`
             <div class="center waiting">
               <div class="title">AO VIVO</div>
               <div class="sub">Workshop Voz no Altar</div>
             </div>
           `);
-          $('buy').style.display = 'none';
+          esconderBotaoCompra();
         }
 
-        if (cena === 'pitch') {
+        else if (cena === 'pitch') {
           const pdf = String(c.PDF_URL || '').trim();
 
           if (pdf) {
-            fade(`<iframe class="pitch-frame" src="${pdf}"></iframe>`);
+            fade(`<iframe class="pitch-frame" src="${escapeAttr(pdf)}"></iframe>`);
           } else {
             fade(`
               <div class="center pitch-fallback">
@@ -200,13 +281,10 @@
             `);
           }
 
-          const checkout = String(c.CHECKOUT || '').trim();
-          $('buy').href = checkout || '#';
-          $('buy').innerText = c.CTA_TEXT || '🔥 GARANTIR VAGA';
-          $('buy').style.display = checkout ? 'block' : 'none';
+          atualizarBotaoCompra(c);
         }
 
-        if (cena === 'bonus') {
+        else if (cena === 'bonus') {
           fade(`
             <div class="center pitch-fallback">
               <div class="title" style="color:var(--gold);">BÔNUS LIBERADOS</div>
@@ -219,33 +297,69 @@
             </div>
           `);
 
-          const checkout = String(c.CHECKOUT || '').trim();
-          $('buy').href = checkout || '#';
-          $('buy').innerText = c.CTA_TEXT || '🔥 GARANTIR VAGA';
-          $('buy').style.display = checkout ? 'block' : 'none';
+          atualizarBotaoCompra(c);
+        }
+
+        else {
+          fade(`
+            <div class="center waiting">
+              <div class="title">FOCO EM CANTO</div>
+              <div class="sub">Transmissão em andamento.</div>
+            </div>
+          `);
+          esconderBotaoCompra();
         }
 
         atual = cena;
+      } else {
+        if (cena === 'pitch' || cena === 'bonus') {
+          atualizarBotaoCompra(c);
+        } else {
+          esconderBotaoCompra();
+        }
       }
     }
-
-    setInterval(() => {
-      if (countdownValue > 0) {
-        countdownValue--;
-        $('countdown').innerText =
-          Math.floor(countdownValue / 60) + ':' + String(countdownValue % 60).padStart(2, '0');
-      } else {
-        $('countdown').innerText = '';
-      }
-    }, 1000);
 
     async function update(){
-      const res = await api.state();
-      if (res.ok) render(res.data);
+      try {
+        if (!window.api || typeof window.api.state !== 'function') {
+          console.warn('API não disponível em /apresentacao');
+          return;
+        }
+
+        const res = await window.api.state();
+
+        if (res && res.ok && res.data) {
+          render(res.data);
+        }
+      } catch (err) {
+        console.error('Erro ao atualizar apresentação:', err);
+      }
     }
 
-    setInterval(update, 2000);
-    update();
+    function iniciarCountdownLocal() {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      countdownInterval = setInterval(() => {
+        if (countdownValue > 0) {
+          countdownValue--;
+          $('countdown').innerText = formatTime(countdownValue);
+        } else {
+          $('countdown').innerText = '';
+        }
+      }, 1000);
+    }
+
+    function iniciarAtualizacao() {
+      if (updateInterval) clearInterval(updateInterval);
+      updateInterval = setInterval(update, 2000);
+      update();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      iniciarCountdownLocal();
+      iniciarAtualizacao();
+    });
   </script>
 </body>
 </html>
