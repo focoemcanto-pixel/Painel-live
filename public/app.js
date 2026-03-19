@@ -117,8 +117,11 @@ window.api = {
    * Nota: NÃO enviamos Content-Type: application/json daqui ao proxy CF,
    * pois o proxy já sabe o que espera. Isso mantém a requisição "simples"
    * do ponto de vista do browser e evita qualquer preflight residual.
+   *
+   * @param {object} payload  - Objeto de ação a enviar ao backend.
+   * @param {number} [timeoutMs] - Timeout em ms (padrão: API_TIMEOUT_MS).
    */
-  async action(payload) {
+  async action(payload, timeoutMs = API_TIMEOUT_MS) {
     const body = JSON.stringify(payload);
     const res = await _fetchComTimeout(_PROXY.action, {
       method: 'POST',
@@ -126,7 +129,7 @@ window.api = {
       // O proxy CF lê o body como texto e repassa ao GAS.
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body
-    });
+    }, timeoutMs);
     return _parseJson(res);
   }
 };
