@@ -739,6 +739,12 @@
           return;
         }
 
+        // Pausa o polling automático para evitar race condition durante a troca
+        if (statusInterval) {
+          clearInterval(statusInterval);
+          statusInterval = null;
+        }
+
         const res = await window.api.action({
           action: 'setCena',
           cena: c
@@ -760,9 +766,25 @@
         } catch (obsErr) {
           console.error('Erro ao enviar cena para OBS:', obsErr);
         }
+
+        // Força atualização imediata após gravar no backend
+        await atualizarPainelStatus();
+
+        // Aguarda 500ms para garantir persistência no Sheets antes de reativar o polling
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Reativa o polling automático
+        if (!statusInterval) {
+          statusInterval = setInterval(atualizarPainelStatus, 2000);
+        }
       } catch (err) {
         console.error('Erro ao trocar cena:', err);
         alert('Erro ao trocar cena: ' + (err.message || err));
+
+        // Garante que o polling seja reativado mesmo em caso de erro
+        if (!statusInterval) {
+          statusInterval = setInterval(atualizarPainelStatus, 2000);
+        }
       }
     }
 
