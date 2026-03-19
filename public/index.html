@@ -4,13 +4,7 @@
   <meta charset="utf-8" />
   <title>Painel Broadcast • Foco em Canto</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- PDF.js 4.4.168 (patched, legacy non-ESM build) -->
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.min.js"></script>
-  <script>
-    if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js';
-    }
-  </script>
+  <!-- PDF.js is loaded on demand via ensurePDFJsLoaded() -->
   <style>
     * { box-sizing: border-box; }
 
@@ -933,7 +927,10 @@
     <div class="modal-content">
       <h3>📊 Upload de Apresentação PDF</h3>
       <input type="file" id="pdfArquivoInput" accept="application/pdf">
-      <button onclick="uploadPDF()">📤 Converter e Enviar</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="testarPDFJs()" style="background:#555;flex:0 0 auto;">🔧 Testar PDF.js</button>
+        <button onclick="uploadPDF()" style="flex:1;">📤 Converter e Enviar</button>
+      </div>
       <div class="upload-progress" id="pdfUploadProgress"></div>
       <div class="sub">O PDF será convertido em slides individuais e salvo no Google Drive.</div>
     </div>
@@ -949,6 +946,8 @@
     let trocarPendente = false;
     let apresentacaoAtual = null;
     let slideAtualNum = 1;
+    let pdfJsReady = false;
+    let pdfJsLoading = false;
 
     function byId(id) {
       return document.getElementById(id);
@@ -1738,12 +1737,119 @@
     /* ── PDF UPLOAD ──────────────────────────── */
     function showPDFProgress(msg) {
       const el = byId('pdfUploadProgress');
-      if (el) { el.textContent = msg; el.style.display = 'block'; }
+      if (!el) return;
+      el.style.display = 'block';
+      if (!document.getElementById('pdfSpinnerStyle')) {
+        const style = document.createElement('style');
+        style.id = 'pdfSpinnerStyle';
+        style.textContent = `
+          .pdf-spinner {
+            width: 14px; height: 14px;
+            border: 2px solid rgba(0,255,136,0.2);
+            border-top-color: #00ff88;
+            border-radius: 50%;
+            animation: pdfSpin 0.8s linear infinite;
+            flex-shrink: 0;
+          }
+          @keyframes pdfSpin { to { transform: rotate(360deg); } }
+        `;
+        document.head.appendChild(style);
+      }
+      el.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:#1a3329;border:1px solid #00ff88;border-radius:6px;font-size:13px;color:#00ff88;margin-top:10px;">
+        <div class="pdf-spinner"></div>
+        <span>${msg}</span>
+      </div>`;
     }
 
     function hidePDFProgress() {
       const el = byId('pdfUploadProgress');
       if (el) el.style.display = 'none';
+    }
+
+    function loadScript(url) {
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+    }
+
+    async function ensurePDFJsLoaded() {
+      if (pdfJsReady) return true;
+      if (pdfJsLoading) {
+        // Wait up to 10 seconds for a concurrent load to finish
+        for (let i = 0; i < 100; i++) {
+          await new Promise(r => setTimeout(r, 100));
+          if (pdfJsReady) return true;
+        }
+        return false;
+      }
+
+      pdfJsLoading = true;
+      try {
+        if (typeof pdfjsLib !== 'undefined' && pdfjsLib.getDocument) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js';
+          pdfJsReady = true;
+          return true;
+        }
+
+        const cdns = [
+          {
+            lib: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.min.js',
+            worker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js'
+          },
+          {
+            lib: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js',
+            worker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js'
+          }
+        ];
+
+        for (const cdn of cdns) {
+          // eslint-disable-next-line no-await-in-loop
+          const loaded = await loadScript(cdn.lib);
+          if (loaded && typeof pdfjsLib !== 'undefined' && pdfjsLib.getDocument) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = cdn.worker;
+            pdfJsReady = true;
+            return true;
+          }
+          console.warn('PDF.js: falhou ao carregar', cdn.lib, '— tentando próximo CDN…');
+        }
+
+        return false;
+      } catch (err) {
+        console.error('Erro ao carregar PDF.js:', err);
+        return false;
+      } finally {
+        pdfJsLoading = false;
+      }
+    }
+
+    async function testarPDFJs() {
+      showPDFProgress('Verificando PDF.js…');
+      const ok = await ensurePDFJsLoaded();
+      hidePDFProgress();
+      if (ok) {
+        alert('✅ PDF.js está funcionando corretamente!\n\nVocê pode fazer upload de PDFs normalmente.');
+      } else {
+        alert(
+          '❌ PDF.js NÃO está funcionando.\n\n' +
+          'Possíveis soluções:\n' +
+          '1. Recarregue a página (Ctrl+F5)\n' +
+          '2. Verifique sua conexão com a internet\n' +
+          '3. Desabilite bloqueadores de anúncios\n' +
+          '4. Tente outro navegador\n\n' +
+          'Detalhes no console (F12).'
+        );
+        console.error('Estado do PDF.js:', {
+          pdfJsReady,
+          pdfJsLoading,
+          pdfjsLibExists: typeof pdfjsLib !== 'undefined',
+          pdfjsLibObject: typeof pdfjsLib === 'undefined' ? null : pdfjsLib
+        });
+      }
     }
 
     async function uploadPDF() {
@@ -1754,14 +1860,27 @@
         return;
       }
 
-      if (typeof pdfjsLib === 'undefined') {
-        alert('PDF.js não carregado. Verifique sua conexão e recarregue a página.');
-        return;
-      }
-
       if (!apiDisponivel()) { alert('API indisponível.'); return; }
 
       try {
+        showPDFProgress('Verificando PDF.js…');
+
+        const isLoaded = await ensurePDFJsLoaded();
+
+        if (!isLoaded) {
+          hidePDFProgress();
+          alert(
+            '❌ Não foi possível carregar o processador de PDF.\n\n' +
+            'Possíveis soluções:\n' +
+            '1. Verifique sua conexão com a internet\n' +
+            '2. Desabilite extensões de bloqueio (AdBlock, etc)\n' +
+            '3. Recarregue a página (Ctrl+F5)\n' +
+            '4. Tente em outro navegador\n\n' +
+            'Se o problema persistir, entre em contato com o suporte.'
+          );
+          return;
+        }
+
         showPDFProgress('Processando PDF…');
 
         const arrayBuffer = await arquivo.arrayBuffer();
@@ -1786,6 +1905,8 @@
           await page.render({ canvasContext: context, viewport }).promise;
 
           const base64 = canvas.toDataURL('image/jpeg', 0.85);
+
+          showPDFProgress(`Enviando slide ${pageNum} de ${numPages}…`);
 
           const res = await window.api.action({
             action: 'uploadMidia',
