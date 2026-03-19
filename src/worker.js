@@ -49,6 +49,7 @@ export default {
     // ===== API: POST ACTION =====
     if (url.pathname === "/api/action" && request.method === "POST") {
       const body = await request.text();
+      console.log("ACTION RECEBIDA:", body);
 
       const res = await fetch(env.GS_API_BASE, {
         method: "POST",
@@ -60,6 +61,7 @@ export default {
       });
 
       const text = await res.text();
+      console.log("RESPOSTA GS:", text);
 
       return new Response(text, {
         status: res.status,
