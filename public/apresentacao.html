@@ -248,12 +248,21 @@
 
       if (cena !== atual) {
         if (cena === 'pre') {
-          fade(`
-            <div class="center waiting">
-              <div class="title">Aguardando...</div>
-              <div class="sub">A transmissão vai começar em instantes. Fique por aqui.</div>
-            </div>
-          `);
+          const videoUrl = String(c.VIDEO_URL || '').trim();
+          if (videoUrl) {
+            fade(`
+              <video autoplay loop muted playsinline style="width:100%;height:100vh;object-fit:cover;display:block;background:#000;">
+                <source src="${escapeAttr(videoUrl)}" type="video/mp4">
+              </video>
+            `);
+          } else {
+            fade(`
+              <div class="center waiting">
+                <div class="title">Aguardando...</div>
+                <div class="sub">A transmissão vai começar em instantes. Fique por aqui.</div>
+              </div>
+            `);
+          }
           esconderBotaoCompra();
         }
 
