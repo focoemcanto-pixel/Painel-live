@@ -1,14 +1,11 @@
-export async function onRequestPost(context) {
-  const body = await context.request.text();
-
-  const apiUrl = 'https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec';
+export async function onRequestGet() {
+  const apiUrl = 'https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec?route=state';
 
   const res = await fetch(apiUrl, {
-    method: 'POST',
+    method: 'GET',
     headers: {
-      'Content-Type': 'application/json'
-    },
-    body
+      'Accept': 'application/json'
+    }
   });
 
   const text = await res.text();
@@ -19,17 +16,6 @@ export async function onRequestPost(context) {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
       'Access-Control-Allow-Origin': '*'
-    }
-  });
-}
-
-export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
     }
   });
 }
