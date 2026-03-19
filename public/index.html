@@ -464,32 +464,46 @@
     };
 
     async function trocar(c, el) {
-      try {
-        document.querySelectorAll('.scene').forEach((s) => s.classList.remove('active'));
-        if (el) el.classList.add('active');
+  try {
+    document.querySelectorAll('.scene').forEach((s) => s.classList.remove('active'));
+    if (el) el.classList.add('active');
 
-        byId('previewText').innerText = c.toUpperCase();
-        byId('previewSceneTag').innerText = 'Cena: ' + c.toUpperCase();
+    byId('previewText').innerText = c.toUpperCase();
+    byId('previewSceneTag').innerText = 'Cena: ' + c.toUpperCase();
 
-        if (!apiDisponivel()) {
-          console.warn('API não disponível para setCena');
-          return;
-        }
-
-        const res = await window.api.action({
-          action: 'setCena',
-          cena: c
-        });
-
-        if (!res || res.ok === false) {
-          alert((res && (res.error || res.message)) || 'Erro ao trocar cena.');
-        }
-      } catch (err) {
-        console.error('Erro ao trocar cena:', err);
-        alert('Erro ao trocar cena: ' + (err.message || err));
-      }
+    if (!apiDisponivel()) {
+      console.warn('API não disponível para setCena');
+      return;
     }
 
+    const res = await window.api.action({
+      action: 'setCena',
+      cena: c
+    });
+
+    if (!res || res.ok === false) {
+      alert((res && (res.error || res.message)) || 'Erro ao trocar cena.');
+      return;
+    }
+
+    try {
+      const obsRes = await fetch('http://127.0.0.1:3001/trocar-cena', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cena: c })
+      });
+
+      const obsJson = await obsRes.json();
+      console.log('OBS bridge:', obsJson);
+    } catch (obsErr) {
+      console.error('Erro ao enviar cena para OBS:', obsErr);
+    }
+
+  } catch (err) {
+    console.error('Erro ao trocar cena:', err);
+    alert('Erro ao trocar cena: ' + (err.message || err));
+  }
+}
     async function salvarMeet() {
       try {
         const link = byId('meetLinkInput').value.trim();
