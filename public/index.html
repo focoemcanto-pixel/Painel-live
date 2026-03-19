@@ -1763,6 +1763,53 @@
       }
     }
 
+    /**
+     * Gera lista de URLs candidatas para um slide, incluindo variantes do Google Drive.
+     * @param {{ id?: string, url?: string, driveId?: string }} slide
+     * @returns {string[]}
+     */
+    function getSlideImageCandidates(slide) {
+      const driveId = slide.driveId ? String(slide.driveId).trim() : '';
+      const rawUrl  = slide.url  ? String(slide.url).trim()  : '';
+      const candidates = [];
+
+      if (rawUrl)  candidates.push(rawUrl);
+
+      if (driveId) {
+        candidates.push(`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`);
+        candidates.push(`https://drive.google.com/uc?id=${driveId}&export=download`);
+        candidates.push(`https://drive.google.com/uc?export=view&id=${driveId}`);
+      }
+
+      return [...new Set(candidates)];
+    }
+
+    /**
+     * Tenta carregar uma imagem a partir de uma lista de URLs candidatas, em sequência.
+     * Só chama onFail se TODAS as URLs falharem.
+     * @param {HTMLImageElement} img
+     * @param {string[]} candidates
+     * @param {(url: string) => void} [onSuccess]
+     * @param {() => void} [onFail]
+     */
+    function loadImageWithFallback(img, candidates, onSuccess, onFail) {
+      let index = 0;
+
+      function tryNext() {
+        if (index >= candidates.length) {
+          onFail?.();
+          return;
+        }
+
+        const url = candidates[index++];
+        img.onerror = tryNext;
+        img.onload  = () => onSuccess?.(url);
+        img.src     = url;
+      }
+
+      tryNext();
+    }
+
     async function renderizarSlidesThumbs() {
       if (!apresentacaoAtual) return;
 
@@ -1778,30 +1825,43 @@
           throw new Error((res && (res.error || res.message)) || 'Erro ao buscar mídias');
         }
 
+        // Preserva o objeto completo (id, url, driveId) para permitir fallback de URLs
         const midiasMap = new Map();
-        res.data.forEach((m) => { midiasMap.set(m.id, m.url); });
+        res.data.forEach((m) => { midiasMap.set(m.id, m); });
 
         grid.innerHTML = '';
         let slidesEncontrados = 0;
 
         apresentacaoAtual.slidesIds.forEach((slideId, index) => {
-          const slideNum = index + 1;
-          const url = midiasMap.get(slideId) || null;
+          const slideNum  = index + 1;
+          const slideData = midiasMap.get(slideId) || null;
 
           const thumb = document.createElement('div');
           thumb.className = 'slide-thumb' + (slideNum === slideAtualNum ? ' active' : '');
           thumb.onclick = () => irParaSlide(slideNum);
 
-          if (url) {
+          if (slideData) {
             slidesEncontrados++;
             const img = document.createElement('img');
-            img.src = escapeHtml(url);
-            img.alt = `Slide ${slideNum}`;
+            img.alt     = `Slide ${slideNum}`;
             img.loading = 'lazy';
-            img.onerror = function() {
-              thumb.classList.add('error');
-              img.style.display = 'none';
-            };
+
+            const candidates = getSlideImageCandidates(slideData);
+            console.log(`[thumb] slide ${slideNum} (id=${slideId} driveId=${slideData.driveId || 'N/A'}) candidatos:`, candidates);
+
+            loadImageWithFallback(
+              img,
+              candidates,
+              (url) => {
+                console.log(`[thumb] slide ${slideNum} carregado com: ${url}`);
+              },
+              () => {
+                console.warn(`[thumb] slide ${slideNum} falhou em todas as URLs (id=${slideId} driveId=${slideData.driveId || 'N/A'})`);
+                thumb.classList.add('error');
+                img.style.display = 'none';
+              }
+            );
+
             const num = document.createElement('div');
             num.className = 'thumb-numero';
             num.textContent = slideNum;
@@ -2263,6 +2323,9 @@
 
         showPDFProgress(`📊 Convertendo ${numPages} ${numPages === 1 ? 'página' : 'páginas'}…`);
 
+        // Timeout estendido para operações de upload de mídia (90s)
+        const UPLOAD_TIMEOUT_MS = 90000;
+
         const slidesIds = [];
         const erros = [];
 
@@ -2283,25 +2346,31 @@
 
             const base64 = canvas.toDataURL('image/jpeg', 0.85);
 
-            showPDFProgress(`☁️ Enviando slide ${pageNum} de ${numPages}…`);
+            showPDFProgress(`☁️ Enviando slide ${pageNum} de ${numPages}… (enviados: ${slidesIds.length} | erros: ${erros.length})`);
+            console.log(`[uploadPDF] slide ${pageNum}/${numPages} → action: uploadMidia`);
 
             const res = await window.api.action({
               action: 'uploadMidia',
               nome: `${arquivo.name.replace(/\.pdf$/i, '')}_slide_${pageNum}.jpg`,
               tipo: 'slide',
               base64
-            });
+            }, UPLOAD_TIMEOUT_MS);
 
             if (res && res.ok && res.id) {
               slidesIds.push(res.id);
+              console.log(`[uploadPDF] slide ${pageNum} OK → id: ${res.id}`);
             } else {
-              erros.push(`Slide ${pageNum}: ${(res && res.error) || 'erro desconhecido'}`);
+              const errMsg = (res && res.error) || 'erro desconhecido';
+              erros.push(`Slide ${pageNum}: ${errMsg}`);
+              console.warn(`[uploadPDF] slide ${pageNum} FALHOU → ${errMsg}`);
             }
           } catch (pageErr) {
-            console.error(`Erro no slide ${pageNum}:`, pageErr);
+            console.error(`[uploadPDF] slide ${pageNum} EXCEÇÃO:`, pageErr);
             erros.push(`Slide ${pageNum}: ${pageErr.message}`);
           }
         }
+
+        console.log(`[uploadPDF] resultado: enviados=${slidesIds.length} falhados=${erros.length} total=${numPages}`);
 
         // PASSO 5: Verificar se pelo menos algum slide foi processado
         if (slidesIds.length === 0) {
@@ -2323,13 +2392,14 @@
 
         // PASSO 6: Criar apresentação
         showPDFProgress('📊 Criando apresentação…');
+        console.log(`[uploadPDF] action: criarApresentacao → ${slidesIds.length} slides`);
 
         const apresRes = await window.api.action({
           action: 'criarApresentacao',
           nome: arquivo.name,
           totalSlides: slidesIds.length,
           slidesIds
-        });
+        }, UPLOAD_TIMEOUT_MS);
 
         if (apresRes && apresRes.ok) {
           // Invalida cache para forçar nova validação
@@ -2340,10 +2410,10 @@
             const verificarRes = await window.api.action({ action: 'listarMidias' });
             if (verificarRes && verificarRes.ok && verificarRes.data) {
               const slidesSalvos = verificarRes.data.filter(m => slidesIds.includes(m.id));
-              console.log(`${slidesSalvos.length} de ${slidesIds.length} slides verificados no backend`);
+              console.log(`[uploadPDF] verificados no backend: ${slidesSalvos.length} de ${slidesIds.length} (enviados=${slidesIds.length} falhados=${erros.length})`);
             }
           } catch (e) {
-            console.warn('Não foi possível verificar slides no backend:', e);
+            console.warn('[uploadPDF] Não foi possível verificar slides no backend:', e);
           }
 
           showPDFProgress('✅ Upload concluído!');
