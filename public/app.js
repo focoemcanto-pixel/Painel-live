@@ -1,5 +1,7 @@
 // URL do Google Apps Script Web App
-window.apiUrl = 'https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec';
+// Allows override via localStorage so users can configure their own deployment
+const _defaultApiUrl = 'https://script.google.com/macros/s/AKfycbxp1xY_Pqsde9Jrs9hbwVr2vTZuqQt2DU7-c5uQQJ0lmBUalNmgIIrXN1XJHNkILpJv/exec';
+window.apiUrl = localStorage.getItem('apiUrl') || _defaultApiUrl;
 
 window.api = {
   async state() {

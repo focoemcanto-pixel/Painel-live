@@ -720,6 +720,22 @@
       font-size: 12px;
       line-height: 1.6;
     }
+
+    .btn-config-api {
+      background: #333;
+      border: 1px solid #555;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 12px;
+      white-space: nowrap;
+      transition: background 0.18s;
+    }
+
+    .btn-config-api:hover {
+      background: #444;
+    }
   </style>
 </head>
 <body>
@@ -730,6 +746,7 @@
     <div class="top-right">
       <div class="badge" id="autoStatus">Automação: desligada</div>
       <div class="badge" id="meetStatus">Meet: não configurado</div>
+      <button onclick="abrirConfigApi()" class="btn-config-api">⚙️ API</button>
     </div>
   </div>
 
@@ -934,6 +951,41 @@
       </div>
       <div class="upload-progress" id="pdfUploadProgress"></div>
       <div class="sub">O PDF será convertido em slides individuais e salvo no Google Drive.</div>
+    </div>
+  </div>
+
+  <div class="modal" id="configApiModal">
+    <div class="modal-content">
+      <h3>⚙️ Configurar API do Google Apps Script</h3>
+      <div style="margin-top:12px;">
+        <label style="font-size:13px;opacity:0.8;">URL da API (Web App Deployment):</label>
+        <input
+          type="text"
+          id="apiUrlInput"
+          placeholder="https://script.google.com/macros/s/DEPLOYMENT_ID/exec"
+        />
+        <small style="display:block;margin-top:4px;opacity:0.6;font-size:12px;">
+          Cole a URL do "Web App" publicado no Google Apps Script
+        </small>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px;">
+        <button onclick="validarEConfigurarApi()">✅ Validar e Salvar</button>
+        <button onclick="closeAllModals()" style="background:#555;">Cancelar</button>
+      </div>
+      <div id="validationStatus" style="margin-top:12px;font-size:13px;"></div>
+      <details style="margin-top:16px;padding:12px;background:#1a1a1a;border-radius:6px;">
+        <summary style="cursor:pointer;font-weight:600;font-size:13px;">❓ Como obter a URL da API</summary>
+        <ol style="margin:10px 0 0 20px;line-height:1.8;font-size:13px;opacity:0.85;">
+          <li>Abra seu Google Apps Script</li>
+          <li>Clique em <strong>Implantar</strong> → <strong>Nova implantação</strong></li>
+          <li>Selecione <strong>Aplicativo da Web</strong></li>
+          <li><strong>Executar como:</strong> Eu</li>
+          <li><strong>Quem tem acesso:</strong> Qualquer pessoa</li>
+          <li>Clique em <strong>Implantar</strong></li>
+          <li>Copie a <strong>URL do aplicativo da Web</strong></li>
+          <li>Cole aqui e clique em "Validar e Salvar"</li>
+        </ol>
+      </details>
     </div>
   </div>
 
@@ -1371,7 +1423,15 @@
       document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
       const tab = byId('tab-' + tipo);
       if (tab) tab.classList.add('active');
-      renderizarMidias(todasMidias.filter((m) => m.tipo === tipo));
+
+      const tipoFiltro = String(tipo || '').toLowerCase().trim();
+      const midiasFiltradas = todasMidias.filter((m) => {
+        const tipoMidia = String(m.tipo || '').toLowerCase().trim();
+        // Slides must never appear in the Videos tab
+        if (tipoFiltro === 'video' && tipoMidia === 'slide') return false;
+        return tipoMidia === tipoFiltro;
+      });
+      renderizarMidias(midiasFiltradas);
 
       byId('midiasGrid').style.display = '';
       byId('btnUploadMidia').style.display = '';
@@ -1384,7 +1444,12 @@
         const res = await window.api.action({ action: 'listarMidias' });
         if (res && res.ok && Array.isArray(res.data)) {
           todasMidias = res.data;
-          renderizarMidias(todasMidias.filter((m) => m.tipo === filtroAtual));
+          const tipoFiltro = String(filtroAtual || '').toLowerCase().trim();
+          renderizarMidias(todasMidias.filter((m) => {
+            const tipoMidia = String(m.tipo || '').toLowerCase().trim();
+            if (tipoFiltro === 'video' && tipoMidia === 'slide') return false;
+            return tipoMidia === tipoFiltro;
+          }));
         }
       } catch (err) {
         console.error('Erro ao carregar mídias:', err);
@@ -1576,10 +1641,17 @@
         return;
       }
 
+      container.innerHTML = '<div class="apres-empty">Carregando apresentações…</div>';
+
       try {
         const res = await window.api.action({ action: 'listarApresentacoes' });
         if (!res || !res.ok) {
-          container.innerHTML = '<div class="apres-empty">Erro ao carregar apresentações.</div>';
+          const msg = (res && (res.error || res.message)) || 'Erro ao carregar apresentações';
+          container.innerHTML = `
+            <div class="apres-empty">
+              <p>❌ ${escapeHtml(msg)}</p>
+              <button onclick="carregarApresentacoes()" style="margin-top:10px;">🔄 Tentar Novamente</button>
+            </div>`;
           return;
         }
 
@@ -1608,7 +1680,12 @@
         });
       } catch (err) {
         console.error('Erro ao carregar apresentações:', err);
-        container.innerHTML = '<div class="apres-empty">Erro ao carregar apresentações.</div>';
+        container.innerHTML = `
+          <div class="apres-empty">
+            <p>❌ Erro ao carregar apresentações</p>
+            <p style="font-size:12px;opacity:0.7;margin-top:4px;">${escapeHtml(err.message || String(err))}</p>
+            <button onclick="carregarApresentacoes()" style="margin-top:10px;">🔄 Tentar Novamente</button>
+          </div>`;
       }
     }
 
@@ -1881,6 +1958,17 @@
         }
 
         const response = await fetchComRetry(window.apiUrl + '?route=apresentacoes');
+
+        // Check content-type before parsing to handle HTML error pages
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error(
+            'Backend retornou HTML em vez de JSON.\n\n' +
+            'Verifique se o Web App está publicado corretamente e se a URL está correta.\n\n' +
+            'Clique em "⚙️ API" no topo para configurar a URL da API.'
+          );
+        }
+
         const json = await response.json();
 
         if (!response.ok) {
@@ -2213,6 +2301,54 @@
       if (e.key === 'ArrowRight') { e.preventDefault(); proximoSlideFn(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); slideAnteriorFn(); }
     });
+
+    /* ── API CONFIG ──────────────────────────── */
+    function abrirConfigApi() {
+      const modal = byId('configApiModal');
+      const input = byId('apiUrlInput');
+      const status = byId('validationStatus');
+      if (input) input.value = window.apiUrl || '';
+      if (status) status.innerHTML = '';
+      if (modal) modal.style.display = 'flex';
+    }
+
+    async function validarEConfigurarApi() {
+      const input = byId('apiUrlInput');
+      const statusDiv = byId('validationStatus');
+      if (!input || !statusDiv) return;
+
+      const url = input.value.trim();
+      if (!url) {
+        statusDiv.innerHTML = '<span style="color:#ff4444;">❌ Digite uma URL válida</span>';
+        return;
+      }
+      if (!url.startsWith('https://script.google.com/macros/')) {
+        statusDiv.innerHTML = '<span style="color:#ff4444;">❌ URL inválida. Deve começar com https://script.google.com/macros/</span>';
+        return;
+      }
+
+      statusDiv.innerHTML = '<span style="color:#aaa;">⏳ Validando conexão…</span>';
+
+      try {
+        const testRes = await fetch(url + '?route=config', { cache: 'no-store' });
+        const contentType = testRes.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error('Backend retornou HTML. Verifique se o Web App está publicado corretamente.');
+        }
+        const testJson = await testRes.json();
+        if (!testJson.ok) {
+          throw new Error(testJson.error || 'Resposta inesperada do backend');
+        }
+
+        window.apiUrl = url;
+        localStorage.setItem('apiUrl', url);
+        statusDiv.innerHTML = '<span style="color:#00ff88;">✅ Conexão validada com sucesso!</span>';
+        setTimeout(() => { closeAllModals(); location.reload(); }, 1500);
+      } catch (err) {
+        console.error('Erro ao validar API:', err);
+        statusDiv.innerHTML = `<span style="color:#ff4444;">❌ Erro: ${escapeHtml(err.message)}</span>`;
+      }
+    }
 
     /* ── INIT ───────────────────────────────── */
     document.addEventListener('DOMContentLoaded', async () => {
