@@ -1791,19 +1791,19 @@
       try {
         if (typeof pdfjsLib !== 'undefined' && pdfjsLib.getDocument) {
           pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js';
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
           pdfJsReady = true;
           return true;
         }
 
         const cdns = [
           {
-            lib: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.min.js',
-            worker: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/legacy/build/pdf.worker.min.js'
+            lib: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+            worker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
           },
           {
-            lib: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js',
-            worker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js'
+            lib: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js',
+            worker: 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js'
           }
         ];
 
@@ -1813,14 +1813,16 @@
           if (loaded && typeof pdfjsLib !== 'undefined' && pdfjsLib.getDocument) {
             pdfjsLib.GlobalWorkerOptions.workerSrc = cdn.worker;
             pdfJsReady = true;
+            console.log('✅ PDF.js carregado com sucesso!');
             return true;
           }
           console.warn('PDF.js: falhou ao carregar', cdn.lib, '— tentando próximo CDN…');
         }
 
+        console.error('❌ PDF.js não pôde ser carregado de nenhum CDN');
         return false;
       } catch (err) {
-        console.error('Erro ao carregar PDF.js:', err);
+        console.error('❌ Erro ao carregar PDF.js:', err);
         return false;
       } finally {
         pdfJsLoading = false;
@@ -1832,23 +1834,29 @@
       const ok = await ensurePDFJsLoaded();
       hidePDFProgress();
       if (ok) {
-        alert('✅ PDF.js está funcionando corretamente!\n\nVocê pode fazer upload de PDFs normalmente.');
+        alert(
+          '✅ PDF.js carregado com sucesso!\n\n' +
+          'Versão: 3.11.174\n' +
+          'Status: Pronto para processar PDFs\n\n' +
+          'Você pode fazer upload de apresentações normalmente.'
+        );
       } else {
         alert(
-          '❌ PDF.js NÃO está funcionando.\n\n' +
-          'Possíveis soluções:\n' +
+          '❌ ERRO: PDF.js NÃO foi carregado!\n\n' +
+          '📋 Soluções:\n\n' +
           '1. Recarregue a página (Ctrl+F5)\n' +
           '2. Verifique sua conexão com a internet\n' +
-          '3. Desabilite bloqueadores de anúncios\n' +
-          '4. Tente outro navegador\n\n' +
-          'Detalhes no console (F12).'
+          '3. Desabilite bloqueadores (AdBlock, uBlock, etc)\n' +
+          '4. Tente em modo anônimo do navegador\n' +
+          '5. Limpe cache e cookies\n\n' +
+          '🔧 Detalhes técnicos no Console (F12)'
         );
-        console.error('Estado do PDF.js:', {
-          pdfJsReady,
-          pdfJsLoading,
-          pdfjsLibExists: typeof pdfjsLib !== 'undefined',
-          pdfjsLibObject: typeof pdfjsLib === 'undefined' ? null : pdfjsLib
-        });
+        console.group('🔍 DEBUG: Estado do PDF.js');
+        console.log('pdfJsReady:', pdfJsReady);
+        console.log('pdfJsLoading:', pdfJsLoading);
+        console.log('pdfjsLib existe:', typeof pdfjsLib !== 'undefined');
+        console.log('pdfjsLib.getDocument:', typeof pdfjsLib !== 'undefined' ? typeof pdfjsLib.getDocument : 'N/A');
+        console.groupEnd();
       }
     }
 
