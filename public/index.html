@@ -762,6 +762,129 @@
       background: #00e07a;
     }
 
+    /* ── SLIDE VIEWER MAIN (center area) ──────── */
+    .slide-viewer-main {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      gap: 10px;
+    }
+
+    .slide-viewer-main.active {
+      display: flex;
+    }
+
+    .slide-viewer-content {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide-viewer-content img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .slide-viewer-empty {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 13px;
+      background: #111;
+    }
+
+    .slide-viewer-empty .sv-icon { font-size: 38px; }
+
+    .slide-viewer-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .slide-viewer-info #svCounter {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+    }
+
+    .slide-viewer-btn {
+      padding: 7px 12px;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      transition: background 0.18s;
+      white-space: nowrap;
+      margin-top: 0;
+      width: auto;
+      flex-shrink: 0;
+    }
+
+    .slide-viewer-btn:hover:not(:disabled) { background: #333; }
+    .slide-viewer-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .sv-btn-fullscreen { background: #1a2a3a; border-color: #2a4a6a; }
+    .sv-btn-fullscreen:hover:not(:disabled) { background: #1e3448; }
+
+    .sv-btn-close {
+      background: rgba(255, 68, 68, 0.15);
+      border-color: rgba(255, 68, 68, 0.25);
+      color: #ff6b6b;
+    }
+
+    .sv-btn-close:hover:not(:disabled) { background: rgba(255, 68, 68, 0.25); }
+
+    /* Fullscreen styles */
+    #slideViewerMain:fullscreen,
+    #slideViewerMain:-webkit-full-screen {
+      background: #000;
+      padding: 20px;
+      display: flex !important;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      gap: 12px;
+    }
+
+    #slideViewerMain:fullscreen .slide-viewer-content,
+    #slideViewerMain:-webkit-full-screen .slide-viewer-content {
+      width: auto;
+      max-width: 100%;
+      max-height: calc(100vh - 70px);
+      aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      flex: 1;
+    }
+
+    #slideViewerMain:fullscreen .slide-viewer-info,
+    #slideViewerMain:-webkit-full-screen .slide-viewer-info {
+      width: 100%;
+      max-width: 640px;
+    }
+
     .apres-empty {
       text-align: center;
       padding: 20px 10px;
@@ -853,6 +976,24 @@
       <div class="preview-scene-badge" id="previewText">PRÉ</div>
     </div>
     <div class="preview-info" id="previewInfo">Preview • OBS Virtual Camera</div>
+
+    <!-- ── SLIDE VIEWER MAIN ─────────────────── -->
+    <div class="slide-viewer-main" id="slideViewerMain">
+      <div class="slide-viewer-content">
+        <img id="slideMainImage" alt="Slide atual">
+        <div class="slide-viewer-empty" id="slideViewerEmpty">
+          <span class="sv-icon">📊</span>
+          <span>Slide não disponível</span>
+        </div>
+      </div>
+      <div class="slide-viewer-info">
+        <button class="slide-viewer-btn" id="svBtnPrev" onclick="slideAnteriorFn()" aria-label="Slide anterior">◀</button>
+        <span id="svCounter">Slide 1 de 1</span>
+        <button class="slide-viewer-btn" id="svBtnNext" onclick="proximoSlideFn()" aria-label="Próximo slide">▶</button>
+        <button class="slide-viewer-btn sv-btn-fullscreen" id="svBtnFullscreen" onclick="toggleFullscreen()" aria-label="Tela cheia">🖥️ Tela Cheia</button>
+        <button class="slide-viewer-btn sv-btn-close" onclick="fecharModoApresentacao()" aria-label="Fechar apresentação">✕ Fechar</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── MEDIA LIBRARY SIDEBAR (right) ─────── -->
@@ -1048,6 +1189,8 @@
     let trocarPendente = false;
     let apresentacaoAtual = null;
     let slideAtualNum = 1;
+    let slideDataCache = new Map();
+    let modoApresentacaoAtivo = false;
     let pdfJsReady = false;
     let pdfJsLoading = false;
     let backendValidado = false;
@@ -1829,6 +1972,9 @@
         const midiasMap = new Map();
         res.data.forEach((m) => { midiasMap.set(m.id, m); });
 
+        // Populate slide data cache for the main viewer
+        slideDataCache = new Map(midiasMap);
+
         grid.innerHTML = '';
         let slidesEncontrados = 0;
 
@@ -1903,17 +2049,38 @@
     }
 
     async function irParaSlide(numero) {
-      if (!apresentacaoAtual || !apiDisponivel()) return;
-      try {
-        const res = await window.api.action({ action: 'setSlideAtual', numero: numero });
-        if (res && res.ok) {
-          slideAtualNum = numero;
-          await renderizarSlidesThumbs();
-        } else {
-          alert((res && (res.error || res.message)) || 'Erro ao navegar slide.');
-        }
-      } catch (err) {
-        console.error('Erro ao ir para slide:', err);
+      if (!apresentacaoAtual) return;
+
+      // Update UI immediately for snappy navigation
+      slideAtualNum = numero;
+      atualizarContadorSlides();
+      atualizarDestaqueMiniatura(numero);
+      if (modoApresentacaoAtivo) {
+        updateMainSlideViewer();
+      }
+
+      // Sync with backend (fire-and-forget, no blocking)
+      if (!apiDisponivel()) return;
+      window.api.action({ action: 'setSlideAtual', numero })
+        .then((res) => {
+          if (!res || !res.ok) {
+            console.warn('[irParaSlide] Backend não confirmou mudança:', res);
+          }
+        })
+        .catch((err) => {
+          console.error('[irParaSlide] Erro ao sincronizar com backend:', err);
+        });
+    }
+
+    function atualizarDestaqueMiniatura(numero) {
+      const grid = byId('slidesGrid');
+      if (!grid) return;
+      grid.querySelectorAll('.slide-thumb').forEach((thumb, idx) => {
+        thumb.classList.toggle('active', idx + 1 === numero);
+      });
+      const activeThumb = grid.querySelector('.slide-thumb.active');
+      if (activeThumb) {
+        activeThumb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
     }
 
@@ -1939,6 +2106,7 @@
     }
 
     function fecharViewer() {
+      fecharModoApresentacao();
       byId('apresentacoesList').style.display = '';
       byId('slidesViewer').style.display = 'none';
       apresentacaoAtual = null;
@@ -1949,7 +2117,121 @@
       const mapa = { pre: 0, live: 1, pitch: 2, bonus: 3 };
       const pitchEl = document.querySelectorAll('.scene')[mapa.pitch];
       await trocar('pitch', pitchEl);
+
+      // Show slide viewer main in the center area
+      const previewContainer = document.querySelector('.preview-container');
+      const previewInfo = byId('previewInfo');
+      const viewer = byId('slideViewerMain');
+      if (previewContainer) previewContainer.style.display = 'none';
+      if (previewInfo) previewInfo.style.display = 'none';
+      if (viewer) viewer.classList.add('active');
+      modoApresentacaoAtivo = true;
+
+      // Ensure slide data cache is populated
+      if (slideDataCache.size === 0 && apresentacaoAtual && apiDisponivel()) {
+        await inicializarSlideDataCache();
+      }
+
+      updateMainSlideViewer();
     }
+
+    async function inicializarSlideDataCache() {
+      if (!apiDisponivel()) return;
+      try {
+        const res = await window.api.action({ action: 'listarMidias' });
+        if (res && res.ok && res.data) {
+          slideDataCache = new Map();
+          res.data.forEach((m) => slideDataCache.set(m.id, m));
+          console.log(`[slideDataCache] ${slideDataCache.size} mídias em cache`);
+        }
+      } catch (err) {
+        console.warn('[slideDataCache] Erro ao inicializar:', err);
+      }
+    }
+
+    function updateMainSlideViewer() {
+      if (!apresentacaoAtual) return;
+      const img = byId('slideMainImage');
+      const empty = byId('slideViewerEmpty');
+      const counter = byId('svCounter');
+      const btnPrev = byId('svBtnPrev');
+      const btnNext = byId('svBtnNext');
+
+      if (counter) counter.textContent = `Slide ${slideAtualNum} de ${apresentacaoAtual.totalSlides}`;
+      if (btnPrev) btnPrev.disabled = slideAtualNum <= 1;
+      if (btnNext) btnNext.disabled = slideAtualNum >= apresentacaoAtual.totalSlides;
+
+      if (!img) return;
+
+      const slideId = apresentacaoAtual.slidesIds[slideAtualNum - 1];
+      if (!slideId) {
+        img.style.display = 'none';
+        if (empty) empty.style.display = 'flex';
+        return;
+      }
+
+      const slideData = slideDataCache.get(slideId) || { url: null, driveId: null, id: slideId };
+      const candidates = getSlideImageCandidates(slideData);
+
+      if (!candidates.length) {
+        img.style.display = 'none';
+        if (empty) empty.style.display = 'flex';
+        return;
+      }
+
+      if (empty) empty.style.display = 'none';
+      img.style.display = 'block';
+
+      loadImageWithFallback(
+        img,
+        candidates,
+        (url) => {
+          console.log(`[slideViewer] slide ${slideAtualNum} carregado: ${url}`);
+        },
+        () => {
+          console.warn(`[slideViewer] slide ${slideAtualNum} falhou em todas as URLs`);
+          img.style.display = 'none';
+          if (empty) empty.style.display = 'flex';
+        }
+      );
+    }
+
+    function fecharModoApresentacao() {
+      if (document.fullscreenElement) {
+        const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+        if (typeof exitFn === 'function') exitFn.call(document);
+      }
+      const previewContainer = document.querySelector('.preview-container');
+      const previewInfo = byId('previewInfo');
+      const viewer = byId('slideViewerMain');
+      if (viewer) viewer.classList.remove('active');
+      if (previewContainer) previewContainer.style.display = '';
+      if (previewInfo) previewInfo.style.display = '';
+      modoApresentacaoAtivo = false;
+    }
+
+    function toggleFullscreen() {
+      const viewer = byId('slideViewerMain');
+      if (!viewer) return;
+      if (!document.fullscreenElement) {
+        const requestFn = viewer.requestFullscreen || viewer.webkitRequestFullscreen;
+        if (typeof requestFn === 'function') {
+          requestFn.call(viewer);
+        } else {
+          console.warn('[toggleFullscreen] Fullscreen API não suportada neste navegador.');
+        }
+      } else {
+        const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+        if (typeof exitFn === 'function') {
+          exitFn.call(document);
+        }
+      }
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      const btn = byId('svBtnFullscreen');
+      if (btn) btn.textContent = document.fullscreenElement ? '⛶ Sair' : '🖥️ Tela Cheia';
+    });
 
     async function deletarApresentacaoFn(id) {
       if (!confirm('Deletar esta apresentação e todos os slides?')) return;
@@ -2458,6 +2740,10 @@
       if (!apresentacaoAtual) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); proximoSlideFn(); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); slideAnteriorFn(); }
+      else if (e.key === 'f' && modoApresentacaoAtivo) {
+        e.preventDefault();
+        toggleFullscreen();
+      }
     });
 
     /* ── API CONFIG ──────────────────────────── */

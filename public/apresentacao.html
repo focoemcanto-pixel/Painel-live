@@ -207,7 +207,49 @@
 
     const $ = (id) => document.getElementById(id);
 
-    function fade(html){
+    function getSlideImageCandidates(slide) {
+      const driveId = String(slide.driveId || '').trim();
+      const rawUrl  = String(slide.url  || '').trim();
+      const candidates = [];
+      if (rawUrl)  candidates.push(rawUrl);
+      if (driveId) {
+        candidates.push(`https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`);
+        candidates.push(`https://drive.google.com/uc?id=${driveId}&export=download`);
+        candidates.push(`https://drive.google.com/uc?export=view&id=${driveId}`);
+      }
+      return [...new Set(candidates)];
+    }
+
+    function loadImageWithFallback(img, candidates, onSuccess, onFail) {
+      let index = 0;
+      function tryNext() {
+        if (index >= candidates.length) { onFail?.(); return; }
+        const url = candidates[index++];
+        img.onerror = tryNext;
+        img.onload  = () => onSuccess?.(url);
+        img.src     = url;
+      }
+      tryNext();
+    }
+
+    function fadeSlide(candidates, alt) {
+      const token = ++renderToken;
+      const app = $('app');
+      app.style.opacity = 0;
+      setTimeout(() => {
+        if (token !== renderToken) return;
+        app.innerHTML = `<div class="slide-apresentacao"><img id="slideImgCurrent" alt="${escapeAttr(alt)}"></div>`;
+        app.style.opacity = 1;
+        const img = document.getElementById('slideImgCurrent');
+        if (img) {
+          loadImageWithFallback(img, candidates, null, () => {
+            console.warn('[apresentacao] Todos os candidatos falharam para:', alt);
+          });
+        }
+      }, 220);
+    }
+
+    function fade(html) {
       const app = $('app');
       const token = ++renderToken;
 
@@ -286,7 +328,8 @@
             const apres = apresRes.data;
             const midiasRes = await window.api.action({ action: 'listarMidias' });
             if (midiasRes && midiasRes.ok && midiasRes.data) {
-              const midiasById = new Map(midiasRes.data.map((m) => [m.id, m.url]));
+              // Store full midia objects (including driveId) to enable fallback URLs
+              const midiasById = new Map(midiasRes.data.map((m) => [m.id, m]));
               apres.slidesIds.forEach((slideId, idx) => {
                 slideUrlsCache[idx] = midiasById.get(slideId) || null;
               });
@@ -294,10 +337,13 @@
           }
         }
 
-        const url = slideUrlsCache[novoSlideNum - 1];
-        if (url) {
-          fade(`<div class="slide-apresentacao"><img src="${escapeAttr(url)}" alt="Slide ${novoSlideNum}"></div>`);
-          return;
+        const slideData = slideUrlsCache[novoSlideNum - 1];
+        if (slideData) {
+          const candidates = getSlideImageCandidates(slideData);
+          if (candidates.length) {
+            fadeSlide(candidates, `Slide ${novoSlideNum}`);
+            return;
+          }
         }
       } catch (e) {
         console.error('Erro ao renderizar slide:', e);
