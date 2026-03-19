@@ -24,6 +24,28 @@ export default {
       });
     }
 
+    // ===== API: GET CONFIG =====
+    if (url.pathname === "/api/config") {
+      const apiUrl = `${env.GS_API_BASE}?route=config`;
+
+      const res = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      const text = await res.text();
+
+      return new Response(text, {
+        status: res.status,
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "no-store"
+        }
+      });
+    }
+
     // ===== API: POST ACTION =====
     if (url.pathname === "/api/action" && request.method === "POST") {
       const body = await request.text();
@@ -31,7 +53,8 @@ export default {
       const res = await fetch(env.GS_API_BASE, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Accept": "application/json"
         },
         body
       });
